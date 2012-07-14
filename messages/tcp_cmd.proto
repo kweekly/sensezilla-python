@@ -1,0 +1,26 @@
+package gen3messages;
+
+message TCP_Cmd {
+    // ID of sender
+    optional string source = 1;
+    
+    enum Command {
+        SEND = 1;
+        SUBSCRIBE = 2;
+        LIST = 3;
+        SPOOF = 4;
+    }
+    optional Command command = 2;
+    
+    // for SEND
+    optional string dest = 3;
+    optional string msg_type = 4; 
+    optional bytes msg = 5;
+    
+    // for SPOOF
+    optional string real_source = 8;
+    
+    // for SUBSCRIBE
+    repeated string ids = 6 ;   // these are ANDed together....
+    repeated string types = 7 ; 
+}

@@ -1,0 +1,21 @@
+package messages;
+
+message Exec_Resp {
+	enum Type {
+		STATE = 1;
+	}
+	
+    optional Type type = 1;
+    
+    // for STATE
+    enum State {
+        RUNNING = 0;
+        STOPPED = 1;
+        RESTARTING = 2;
+    }
+    message Process {
+        optional string name = 1;
+        optional State state = 2;
+    }
+    repeated Process processes = 4;
+}

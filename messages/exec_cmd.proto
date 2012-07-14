@@ -1,0 +1,19 @@
+package messages;
+
+message Exec_Cmd {
+	enum Command {
+		STOP = 0;
+		START = 1;
+		RESTART = 2;
+        STATE = 3;
+		LIST = 4;
+		KILL = 5;
+	}
+
+	optional Command command = 1;	
+    
+    // for STOP/START/RESTART/STATE
+    optional string name = 2;
+    
+    // for LIST
+}

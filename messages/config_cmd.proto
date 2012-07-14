@@ -1,0 +1,21 @@
+package messages;
+
+message Config_Cmd {
+    enum Command {
+        GET = 0;
+        SET = 1;
+        REVERT = 2;
+       
+        GET_ALL = 3;
+        SET_ALL = 4;
+    }
+    
+    optional Command cmd = 1;
+    optional string mod_name = 2;
+    optional string key = 3;
+    optional string val = 4;
+    
+    repeated string mod_names = 5;
+    repeated string keys = 6;
+    repeated string vals = 7;
+}

@@ -1,0 +1,11 @@
+#Thu Jul 12 19:57:42 PDT 2012
+eclipse.preferences.version=1
+encoding//bin/exe=utf-8
+encoding//includes/config.py=utf-8
+encoding//includes/unixIPC.py=utf-8
+encoding//modules/mod_config/mod_config_IF.py=utf-8
+encoding//modules/mod_exec/asyncprocess.py=utf-8
+encoding//modules/mod_exec/mod_exec.py=utf-8
+encoding//modules/mod_exec/mod_exec_IF.py=utf-8
+encoding//modules/tcp_gateway/tcp_gateway.py=utf-8
+encoding//modules/tcp_gateway/tcp_gateway_IF.py=utf-8

@@ -1,0 +1,22 @@
+package gen3messages;
+
+message TCP_Resp {
+    enum Type {
+        RECV = 1;
+        DISCONNECT = 2;
+        CONNECT = 3;
+        LIST = 4;
+    }
+    optional Type type = 1;
+    
+    // for RECV
+    optional string source = 2;
+    optional string msg_type = 3;
+    optional bytes msg = 4;
+    
+    // for CONNECT/DISCONNECT
+    optional string id = 5;
+    
+    // for LIST
+    repeated string ids = 6;
+}

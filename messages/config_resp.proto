@@ -1,0 +1,19 @@
+package messages;
+
+message Config_Resp {
+    enum Type {
+        VAL = 0;
+        VALS = 1;
+    }
+    
+    optional Type type = 1;
+    optional string mod_name = 2;
+    optional string key = 3;
+    optional string val = 4;
+    
+    repeated string mod_names = 5;
+    repeated string keys = 6;
+    repeated string vals = 7;
+    
+    optional string error = 8;
+} 

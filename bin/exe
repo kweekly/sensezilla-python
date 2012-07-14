@@ -1,0 +1,50 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+# exe - CLI to mod_exec
+
+import sys,os
+if 'SENSEZILLA_DIR' not in os.environ:
+    print "Note: SENSEZILLA_DIR not provided. Assuming ../"
+    os.environ['SENSEZILLA_DIR'] = ".."
+    
+sys.path.insert(0,os.environ['SENSEZILLA_DIR']+"/includes");
+import config
+from mod_exec import mod_exec_IF
+
+if len(sys.argv) < 2 :
+    print """\
+Usage: exe list           : List processes running and their status
+       exe start   <proc> : Start given process
+       exe stop    <proc> : Stop given process
+       exe restart <proc> : Restart given process
+       exe state   <proc> : Get state of process
+       exe kill           : Kill mod_exec and all processes
+    """
+else:
+    mod_exec_IF.connect();
+    if sys.argv[1].lower() == 'list':
+        mods = mod_exec_IF.list()
+        if mods != None:
+            for mod in mods:
+                print "%-10s : %s" % (mod.name,mod_exec_IF.state_names[mod.state]);
+        else:
+            print "Error."
+    elif sys.argv[1].lower() == 'kill':
+        mod_exec_IF.kill();
+    elif len(sys.argv) > 2:
+        if sys.argv[1].lower() == 'start':
+            mod_exec_IF.start(sys.argv[2]);
+        elif sys.argv[1].lower() == 'stop':
+            mod_exec_IF.stop(sys.argv[2]);
+        elif sys.argv[1].lower() == 'restart':
+            mod_exec_IF.restart(sys.argv[2]);
+        elif sys.argv[1].lower() == 'state':
+            state = mod_exec_IF.get_state(sys.argv[2]);
+            if ( state != None ):
+                print mod_exec_IF.state_names[state];
+            else:
+                print "Error."
+        else:
+            print "Unknown process command "+sys.argv[1]
+    else:
+        print "Unknown command "+sys.argv[1]
