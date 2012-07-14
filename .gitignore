@@ -24,3 +24,10 @@ pip-log.txt
 
 #Mr Developer
 .mr.developer.cfg
+
+
+*~
+*_pb2.py
+*.log
+*.csv
+
