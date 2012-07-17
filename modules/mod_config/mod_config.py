@@ -2,11 +2,11 @@
 import os,sys, re
 import time
 # Gen3 common modules
-if 'GEN3DIR' not in os.environ:
-    print "Note: GEN3DIR not provided. Assuming ../../"
-    os.environ['GEN3DIR'] = "../.."
+if 'SENSEZILLA_DIR' not in os.environ:
+    print "Note: SENSEZILLA_DIR not provided. Assuming ../../"
+    os.environ['SENSEZILLA_DIR'] = "../.."
 
-sys.path.insert(0,os.environ['GEN3DIR']+"/gen3includes");
+sys.path.insert(0,os.environ['SENSEZILLA_DIR']+"/includes");
 import config
 import mod_config_IF
 import unixIPC

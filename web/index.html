@@ -1,0 +1,35 @@
+<html>
+<title>Sensezilla Web Interface</title>
+<head>
+<link href="static/style.css" rel="stylesheet" type="text/css">
+</head>
+<body>
+<h2>Sensezilla Server Status</h2>
+<h3>System
+<table>
+<tr><td colspan=2><b>CPU Usage</b></td></tr>
+{% for cpu in cpu_info %}
+<tr><td>CPU{{ loop.index }}</td><td>{{ '%5.2f'%cpu }} %</td></tr>
+{% endfor %}
+<tr><td colspan=2><b>Memory Usage</b></td></tr>
+<tr><td>Physical</td><td> {{ '%5.2f'%(phymem_info['percent']) }} % ({{ '%.1f / %.1f GiB'%(phymem_info.used/(2**30),phymem_info.total/(2**30)) }}) </td></tr>
+<tr><td>Virtual</td><td> {{ '%5.2f'%(virtmem_info['percent']) }} % ({{ '%.1f / %.1f GiB'%(virtmem_info.used/(2**30),virtmem_info.total/(2**30)) }}) </td></tr>
+
+</table>
+
+<h3>Python Modules</h3>
+<table>
+<tr><th>Proceses</th><th>Status</th><th colspan=3>
+<tr><td>mod_exec</td><td>{{ 'OFF' if not procs_connected else 'ON' }}</td><td><button onclick="window.location='admin.html?modname=mod_exec&action=start'">Start</button></td><td><button onclick="window.location='admin.html?modname=mod_exec&action=stop'">Kill</button></td></tr>
+<tr><td colspan=2></td></tr>
+{% for mod in procs %}
+	<tr><td>{{ mod.name }}</td><td style="background:{{ 'red' if mod.statestr=='STOPPED' else 'yellow' if mod.statestr=='RESTART' else 'green' }}">{{ mod.statestr }}</td>
+	<td><button onclick="window.location='admin.html?modname={{ mod.name }}&action=start'">Start</button></td>
+	<td><button onclick="window.location='admin.html?modname={{ mod.name }}&action=stop'">Stop</button></td>
+	<td><button onclick="window.location='admin.html?modname={{ mod.name }}&action=restart'">Restart</button></td>
+	</tr>
+{% endfor %}
+</table>
+
+</body>
+</html>

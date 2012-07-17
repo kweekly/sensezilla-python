@@ -4,8 +4,10 @@ import sys, os;
 
 
 # set stdout & stderr to unbuffered
-sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0) 
-sys.stderr = os.fdopen(sys.stderr.fileno(), 'w', 0) 
+try:
+    sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0) 
+    sys.stderr = os.fdopen(sys.stderr.fileno(), 'w', 0) 
+except AttributeError:pass
  
 if 'SENSEZILLA_DIR' not in os.environ:
 	print "Note: SENSEZILLA_DIR not provided. Assuming ../"
