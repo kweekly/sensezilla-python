@@ -17,7 +17,8 @@
 <tr><td colspan=2><b>Memory Usage</b></td></tr>
 <tr><td>Physical</td><td> {{ '%5.2f'%(phymem_info['percent']) }} % ({{ '%.1f / %.1f GiB'%(phymem_info.used/(2**30),phymem_info.total/(2**30)) }}) </td></tr>
 <tr><td>Virtual</td><td> {{ '%5.2f'%(virtmem_info['percent']) }} % ({{ '%.1f / %.1f GiB'%(virtmem_info.used/(2**30),virtmem_info.total/(2**30)) }}) </td></tr>
-
+<tr><td colspane=2><b>Disk Usage</b></td></tr>
+<tr><td>Data Storage</td><td> {{ '%5.2f'%(disk_info['percent']) }} % ({{ '%.1f / %.1f GiB'%(disk_info.used/(2**30),disk_info.total/(2**30)) }}) </td></tr>
 </table>
 
 <h3>Python Modules</h3>
