@@ -16,7 +16,7 @@ def do_index(environ, start_response):
     phymem_info = psutil.phymem_usage()
     virtmem_info = psutil.virtmem_usage()
     disk_info = psutil.disk_usage(config.map['global']['data_dir'])
-    
+     
     ## getting status of modules
     mod_exec_IF.connect();
     if ( mod_exec_IF.connected() ):
@@ -82,7 +82,10 @@ def do_admin(environ, start_response):
                 if ( mod_exec_IF.connected() ):
                     resp.append("mod_exec already responding, please kill first if you wish to restart")
                 else:
-                    rcode = os.system(config.map['mod_exec']['python']+' '+config.map['global']['root_dir']+'/modules/mod_exec/mod_exec.py')
+                    if (os.path.exists('/etc/init.d/sensezilla')):
+                        rcode = os.system('/etc/init.d/sensezilla start')
+                    else:
+                        rcode = os.system(config.map['mod_exec']['python']+' '+config.map['global']['root_dir']+'/modules/mod_exec/mod_exec.py')
                     resp.append("Started mod_exec, response code %d"%rcode)
             else:
                 resp.append("Connect to mod_exec...")

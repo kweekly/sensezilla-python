@@ -133,7 +133,7 @@ def load_conf(conf_file, verbose=False):
 
             if ( wsexpr.match(cline) ):
                 continue;
-                
+            
             sectmatch = sectexpr.match(cline);
             if sectmatch :
                 cur_mod = sectmatch.group('sect');
@@ -141,7 +141,6 @@ def load_conf(conf_file, verbose=False):
                 
             incmatch = incexpr.match(cline);
             if incmatch :
-                
                 if incmatch.group('file')[0] == '/':
                     load_conf(incmatch.group('file'),verbose);
                 else:
@@ -179,8 +178,11 @@ def load_conf(conf_file, verbose=False):
 
                 if not cmap.has_key(cur_mod):
                     cmap[cur_mod] = {key:val}
+                    #print "%s.%s = %s"%(cur_mod,key,val)
                 else:
                     cmap[cur_mod][key] = val;
+                    #print "%s.%s = %s"%(cur_mod,key,val)
+                    
             elif oper == '@=' :
                 if cmap.has_key(cur_mod) and cmap[cur_mod].has_key(key):
                     if (verbose): print conf_file+":",line_no,": Already contains array (overriding) \""+key+"\"";
