@@ -15,7 +15,7 @@ def do_index(environ, start_response):
     cpu_info = psutil.cpu_percent(interval=1, percpu=True)
     phymem_info = psutil.phymem_usage()
     virtmem_info = psutil.virtmem_usage()
-    disk_info = psutil.disk_usage('/mnt/DATA')
+    disk_info = psutil.disk_usage(config.map['global']['data_dir'])
     
     ## getting status of modules
     mod_exec_IF.connect();
