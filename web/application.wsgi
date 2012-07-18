@@ -28,6 +28,7 @@ def do_index(environ, start_response):
                 mod.statestr = 'RESTART'
             elif mod.state == mod_exec_IF.STOPPED:
                 mod.statestr = 'STOPPED'
+
     else:
         procs = []
         
@@ -56,6 +57,8 @@ def do_tasks(environ,start_response):
             task.statusstr = "Waiting until "+task.start_time.strftime("%m/%d/%Y %H:%M%S")+" to start"
         elif ( task.status == scheduledb.RUNNING ):
             task.statusstr = "Running"
+        elif ( task.status == scheduledb.PAUSED ):
+            task.statusstr = "Paused"
 
 
 
@@ -103,6 +106,7 @@ def do_admin(environ, start_response):
                             elif (d['action'][0] =='restart'):
                                 mod_exec_IF.restart(d['modname'][0])
                                 resp.append("Module restarted\n")
+                            
                         else:
                             resp.append("Could not get state of %s (is it unknown to mod_exec?)"%d['modname'][0])                    
                 else:

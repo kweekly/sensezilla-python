@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import asyncprocess
+
 import os, sys, re, os.path, time
 
 
@@ -8,7 +8,7 @@ if 'SENSEZILLA_DIR' not in os.environ:
     sys.exit(1);
     
 sys.path.insert(0, os.environ['SENSEZILLA_DIR'] + "/includes");
-
+import asyncprocess
 
 class ExecProcess:pass
 

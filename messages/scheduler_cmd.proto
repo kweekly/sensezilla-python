@@ -1,0 +1,16 @@
+package messages;
+
+message Scheduler_Cmd {
+	enum Command {
+		FORCE_START = 1;
+		PAUSE = 2;
+		UNPAUSE = 3;
+		PAUSE_ALL = 4;
+		UNPAUSE_ALL = 5;
+		KILL = 6;
+		KILL_ALL = 7;
+	}
+
+	optional Command command = 1;
+    optional int32 task_id = 2;
+}
