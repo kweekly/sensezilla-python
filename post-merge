@@ -1,0 +1,6 @@
+#!/bin/bash
+
+echo "Compling protobuf prototypes"
+cd $SENSEZILLA_DIR/messages
+/usr/bin/protoc --python_out=. *.proto
+
