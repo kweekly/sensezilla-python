@@ -22,7 +22,7 @@ class Task:
     def __init__(self):
         self.id = next_task_id();
         self.command = 'ls'
-        self.args = ''
+        self.profile_tag = ''
         self.prerequisites = []
         self.start_after = datetime.fromtimestamp(0)
         self.deadline_s = 10000000
@@ -47,7 +47,7 @@ def initdb():
          "schedule.tasks",
          (("id", "integer primary key"),
           ("command","varchar"),
-          ("args","varchar"),
+          ("profile_tag","varchar"),
           ("prerequisites","integer[]"),
           ("start_after","timestamp"),
           ("deadline_s","integer"),
@@ -77,7 +77,7 @@ def next_task_id():
 
 def add_task(task):
     postgresops.dbcur.execute("INSERT INTO schedule.tasks"+ 
-                "(id,command,args,prerequisites,start_after,deadline_s,start_time,end_time,cpu_usage_s,status,progress_steps_done,progress_steps_total,step_description,step_percent_done,log_file) "+
+                "(id,command,profile_tag,prerequisites,start_after,deadline_s,start_time,end_time,cpu_usage_s,status,progress_steps_done,progress_steps_total,step_description,step_percent_done,log_file) "+
                 "VALUES ("+"%s,"*14+"%s)",row_for_task(task))
     postgresops.dbcon.commit()
     
@@ -113,12 +113,12 @@ def get_tasks(where=''):
     return retval
 
 def row_for_task(task):
-    return (task.id, task.command, task.args, task.prerequisites, task.start_after, task.deadline_s, task.start_time, task.end_time, task.cpu_usage_s, task.status,
+    return (task.id, task.command, task.profile_tag, task.prerequisites, task.start_after, task.deadline_s, task.start_time, task.end_time, task.cpu_usage_s, task.status,
                  task.progress_steps_done, task.progress_steps_total, task.step_description, task.step_percent_done, task.log_file )
     
 def task_for_row(row):
     task = Task()
-    (task.id, task.command, task.args, task.prerequisites, task.start_after, task.deadline_s, task.start_time, task.end_time, task.cpu_usage_s, task.status,
+    (task.id, task.command, task.profile_tag, task.prerequisites, task.start_after, task.deadline_s, task.start_time, task.end_time, task.cpu_usage_s, task.status,
                  task.progress_steps_done, task.progress_steps_total, task.step_description, task.step_percent_done, task.log_file ) = row;
     return task
     

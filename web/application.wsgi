@@ -47,7 +47,7 @@ def do_tasks(environ,start_response):
     start_response('200 OK',[('Content-Type','text/html')])
 
     ## getting task info
-    tasks = scheduledb.get_tasks(where='status >= %d AND status <= %d'%(scheduledb.STOPPED,scheduledb.RUNNING))
+    tasks = scheduledb.get_tasks(where='status >= %d AND status <= %d'%(scheduledb.WAITING_FOR_INPUT,scheduledb.RUNNING))
     for task in tasks:
         if ( task.status == scheduledb.STOPPED ):
             task.statusstr = "Stopped"

@@ -12,10 +12,32 @@ PostgreSQL connected : {{ dbconnected }}<br>
 
 <h3>Active Tasks</h3>
 <table>
-<tr><th>id</th><th>Command line</th><th>Status</th><th>Current Step</th><th>Step Progress</th></tr>
+<tr>
+<th>id</th>
+<th>Command line</th>
+<th>Status</th>
+<th>Current Step</th>
+<th>Step Progress</th>
+<th>Log File</th>
+<th>Profile Tag</th>
+</tr>
+
+
 {% for task in tasks %}
-<tr><td>{{ task.id }}</td><td>{{ task.command }}</td><td>{{ task.statusstr }}</td><td>{{ task.progress_steps_done+1 }} / {{ task.progress_steps_total }} : {{ task.step_description }}</td><td>{{task.step_percent_done}}</td></tr>  
+<tr>
+<td>{{ task.id }}</td>
+<td>{{ task.command }}</td>
+<td>{{ task.statusstr }}</td>
+<td>{{ task.progress_steps_done+1 }} / {{ task.progress_steps_total }} : {{ task.step_description }}</td>
+<td>{{task.step_percent_done}}</td>
+<td>{{task.log_file}}</td>
+<td>{{task.profile_tag}}</td>
+</tr>  
 {% endfor %}
 </table>
+
+<h4>Custom Tasks</h4>
+
+
 </body>
 </html>
