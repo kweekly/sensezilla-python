@@ -35,11 +35,38 @@ def do_index(environ, start_response):
                   cpu_info=cpu_info,phymem_info=phymem_info,virtmem_info=virtmem_info,disk_info=disk_info,
                   procs_connected=mod_exec_IF.connected(), procs=procs
                   ))]    
+    
+def do_tasks(environ,start_response):
+    from mod_scheduler import scheduledb
+    
+    scheduledb.connect()
+    dbconnected = scheduledb.connected()
+    env = Environment(loader=FileSystemLoader(environ['DOCUMENT_ROOT']));
+    template = env.get_template('tasks.html')
+    start_response('200 OK',[('Content-Type','text/html')])
 
+    ## getting task info
+    tasks = scheduledb.get_tasks(where='status >= %d AND status <= %d'%(scheduledb.STOPPED,scheduledb.RUNNING))
+    for task in tasks:
+        if ( task.status == scheduledb.STOPPED ):
+            task.statusstr = "Stopped"
+        elif ( task.status == scheduledb.WAITING_FOR_INPUT ):
+            task.statusstr = "Waiting for Prerequisite IDs:<br>["+','.join(task.prerequisites)+"]"
+        elif ( task.status == scheduledb.WAITING_FOR_START ):
+            task.statusstr = "Waiting until "+task.start_time.strftime("%m/%d/%Y %H:%M%S")+" to start"
+        elif ( task.status == scheduledb.RUNNING ):
+            task.statusstr = "Running"
+
+
+
+    return [str(template.render(
+                dbconnected=dbconnected,
+                tasks=tasks
+            ))]
 
 def do_admin(environ, start_response):
     start_response('200 OK',[('Content-Type','text/html')])
-    resp = ['<html><head><meta http-equiv="Refresh" content="10;url=/index.html" /></head><body>']
+    resp = ['<html><head><meta http-equiv="Refresh" content="10;url=/index" /></head><body>']
     resp.append("<h2>Admin Command Progress</h2>\n<pre>\n");
     d = cgi.parse_qs(environ['QUERY_STRING'])
     if ( 'modname' in d ):
@@ -86,9 +113,11 @@ def do_admin(environ, start_response):
         resp.append("Cannot determine what admin command you want to run\n")
    
     resp.append("\n\nRedirecting to index.html...\n");
-    resp.append("</pre><a href='/index.html'>Or go there now</a></body></html>\n") 
+    resp.append("</pre><a href='/index'>Or go there now</a></body></html>\n") 
     return resp
 
+
+     
 
 def application(environ, start_response):
     global config, mod_exec_IF
@@ -105,12 +134,14 @@ def application(environ, start_response):
     
     req = environ['PATH_INFO']
     
-    if ( req == '/index.html'):
+    if ( req == '/index'):
         return do_index(environ,start_response)    
-    elif (req == '/admin.html'):
+    elif (req == '/admin'):
         return do_admin(environ,start_response)
+    elif (req == '/tasks'):
+        return do_tasks(environ,start_response)
     else:
-        start_response('301 Redirect', [('Location', '/index.html')]);
+        start_response('301 Redirect', [('Location', '/index')]);
         return []
     
 

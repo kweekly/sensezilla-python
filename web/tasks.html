@@ -1,0 +1,21 @@
+<html>
+<title>Sensezilla Web Interface</title>
+<head>
+<link href="static/style.css" rel="stylesheet" type="text/css">
+</head>
+<body>
+<h2>Sensezilla Server Status</h2>
+<a href="index">Status</a> | <a href="tasks">Tasks</a>
+
+<h3>Database Status</h3>
+PostgreSQL connected : {{ dbconnected }}<br>
+
+<h3>Active Tasks</h3>
+<table>
+<tr><th>id</th><th>Command line</th><th>Status</th><th>Current Step</th><th>Step Progress</th></tr>
+{% for task in tasks %}
+<tr><td>{{ task.id }}</td><td>{{ task.command }}</td><td>{{ task.statusstr }}</td><td>{{ task.progress_steps_done+1 }} / {{ task.progress_steps_total }} : {{ task.step_description }}</td><td>{{task.step_percent_done}}</td></tr>  
+{% endfor %}
+</table>
+</body>
+</html>
