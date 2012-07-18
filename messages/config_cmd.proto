@@ -19,3 +19,4 @@ message Config_Cmd {
     repeated string keys = 6;
     repeated string vals = 7;
 }
+
