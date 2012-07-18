@@ -1,0 +1,36 @@
+ 
+<VirtualHost *:80>
+        ServerAdmin webmaster@localhost
+
+        DocumentRoot /home/sensezilla/python/web
+        SetEnv SENSEZILLA_DIR /home/sensezilla/python
+        SetEnv SENSEZILLA_MISSION website
+
+        WSGIDaemonProcess sensezilla.berkeley.edu user=sensezilla group=sensezilla threads=25
+        WSGIProcessGroup sennsezilla.berkeley.edu
+
+        WSGIScriptReloading On
+        WSGIScriptAlias / /home/sensezilla/python/web/application.wsgi
+        Alias /robots.txt /home/sensezilla/python/web/robots.txt
+        Alias /favicon.ico /home/sensezilla/python/web/favicon.ico
+        Alias /images /home/sensezilla/python/web/images
+        Alias /static /home/sensezilla/python/web/static
+
+
+        <Directory /home/sensezilla/python/web/>
+                Options Indexes MultiViews
+                AllowOverride None
+                Order allow,deny
+                allow from all
+        </Directory>
+
+        ErrorLog /home/sensezilla/python/web/apache2-error.log
+
+        # Possible values include: debug, info, notice, warn, error, crit,
+        # alert, emerg.
+        LogLevel warn
+
+        CustomLog /home/sensezilla/python/web/apache2-access.log combined
+
+
+</VirtualHost>
