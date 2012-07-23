@@ -17,7 +17,7 @@ Usage: fetcher.py [list | fetch]
     list : List available sources and identifiers        
 
     fetch [--from <time>] [--to <time>] <source name> <device identifier> <output CSV>
-        Fetch data from source to CSV
+        Fetch data to CSV, default 1 day history, or by given times
 """
 elif sys.argv[1] == 'list':
     for file in os.listdir(config.map['global']['source_dir']):

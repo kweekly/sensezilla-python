@@ -1,9 +1,10 @@
+type = TIMESERIES
 driver = SMAP
 url = http://new.openbms.org/backend/
 
 # default units are in "millis" 
-tunits = m
-vunits = m
+intr = 1000
+invr = 1000
 
 ## add devices here
 devices @= 8fbe97ef-37ba-5b5b-ba52-d1f643b34045

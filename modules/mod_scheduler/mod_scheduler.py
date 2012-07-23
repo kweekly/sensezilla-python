@@ -75,7 +75,23 @@ def child_timed_out(child):
         child.fout.close()
     children.remove(child)
 
+statexpr = re.compile(r"^PROGRESS STEP (?P<stepd>\d+) OF (?P<stept>\d+) \"(?P<stepn>.+?)\" (?P<prog>.*?) DONE$")
+
 def child_write_out(child, msg):
+    m = statexpr.match(msg)
+    if m :
+        child.task.progress_steps_done = m.group('stepd')
+        child.task.progress_steps_total= m.group('stept')
+        child.task.step_description    = m.group('stepn')
+        child.task.step_progress_str   = m.group('prog')
+        
+        scheduledb.update_task_mult(child.task,[
+             ['progress_steps_done', child.task.progress_steps_done],
+             ['progress_steps_total', child.task.progress_steps_total],
+             ['step_description', child.task.step_description],
+             ['step_progress_str',child.task.step_progress_str]
+        ])
+        
     lines = msg.split('\n')
     for line in lines:
         print >> child.fout,line    
@@ -90,7 +106,7 @@ def child_kill(child):
     child.task.end_time = datetime.now()
     child.status = scheduledb.STOPPED
     scheduledb.update_task_mult(child.task,[
-            ['end_time',child.end_time],
+            ['end_time',child.task.end_time],
             ['status',child.status]                        
     ])
     if ( child.fout != stdout ):

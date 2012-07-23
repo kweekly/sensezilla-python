@@ -1,8 +1,9 @@
+type = TIMESERIES
 driver = SMAP
 url = http://sensezilla.eecs.berkeley.edu/backend/
 
 # default units are in "millis" 
-tunits = m
-vunits = m
+intr = m
+invr = m
 
 ## add devices here

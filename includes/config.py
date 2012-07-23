@@ -15,6 +15,7 @@ if 'SENSEZILLA_DIR' not in os.environ:
 
 root = os.environ['SENSEZILLA_DIR']
 
+bin_dir = root+"/bin"
 message_dir = root+"/messages"
 module_dir = root+"/modules"
 include_dir = root+"/includes"
@@ -95,7 +96,7 @@ class IPCMap:
 
 
 map = IPCMap({'global':IPCMap({'root_dir':root,'message_dir':message_dir, 'module_dir':module_dir, 'include_dir':include_dir, 'mission_dir':mission_dir, 
-                               'flow_dir':flow_dir,'source_dir':source_dir},modname='global')});
+                               'flow_dir':flow_dir,'source_dir':source_dir,'bin_dir':bin_dir},modname='global')});
 
 
 def check_key( mod_name, key):
@@ -138,15 +139,21 @@ def read_struct(conf_file, verbose=False):
             incmatch = incexpr.match(cline);
             if incmatch :
                 if incmatch.group('file')[0] == '/':
-                    read_struct(incmatch.group('file'),verbose);
+                    lmap.update(read_struct(incmatch.group('file'),verbose));
                 else:
-                    read_struct(root+"/conf/"+incmatch.group('file'),verbose);
+                    lmap.update(read_struct(conf_file[0:conf_file.rindex('/')]+'/'+incmatch.group('file'),verbose));
                 continue;
 
-            for key in lmap.keys():
-                if type(lmap[key]) is str:
-                    cline = cline.replace("$("+key+")", lmap[key]);
-            
+            if '$(' in cline:
+                idx = cline.find('$(')
+                key = cline[idx+2:cline.find(')',idx)]
+                try:
+                    cline = cline.replace("$("+key+")", lmap[key])
+                except KeyError:pass
+                try:
+                    cline = cline.replace("$("+key+")", map['global'][key])
+                except KeyError:pass
+                 
             match = expr.match(cline);
             match2 = expr2.match(cline);
             

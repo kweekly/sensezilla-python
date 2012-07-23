@@ -1,0 +1,17 @@
+#includes common tasks defs such as 'fetcher' and 'minpeakfilter'
+include "common.inc"
+
+use_tmp = 1
+
+source_types @= TIMESERIES
+tasks @= fetcher
+tasks @+ minfilter
+tasks @+ libbuilder
+libbuilder.profile = cpu_bound
+libbuilder.cmd = "LD_LIBRARY_PATH=$(cpp_bin) $(cpp_bin)/library_builder -csvin %I0 -outdir %O0 -outprec 13"
+
+# connect inputs and outputs
+minfilter.I0 = fetcher.O0
+libbuilder.I0 = minfilter.O0
+
+outputs @= libbuilder.O0

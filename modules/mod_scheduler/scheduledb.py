@@ -33,7 +33,7 @@ class Task:
         self.progress_steps_done = 0
         self.progress_steps_total = 0
         self.step_description = ''
-        self.step_percent_done = 0.0
+        self.step_progress_str = ''
         self.log_file = '/dev/null'
 
 def connect():
@@ -58,7 +58,7 @@ def initdb():
           ("progress_steps_done","smallint"),
           ("progress_steps_total","smallint"),
           ("step_description","varchar"),
-          ("step_percent_done","real"),
+          ("step_progress_str","varchar"),
           ("log_file","varchar")
           ))
     if res: # if a new table was created, create the index
@@ -77,7 +77,7 @@ def next_task_id():
 
 def add_task(task):
     postgresops.dbcur.execute("INSERT INTO schedule.tasks"+ 
-                "(id,command,profile_tag,prerequisites,start_after,deadline_s,start_time,end_time,cpu_usage_s,status,progress_steps_done,progress_steps_total,step_description,step_percent_done,log_file) "+
+                "(id,command,profile_tag,prerequisites,start_after,deadline_s,start_time,end_time,cpu_usage_s,status,progress_steps_done,progress_steps_total,step_description,step_progress_str,log_file) "+
                 "VALUES ("+"%s,"*14+"%s)",row_for_task(task))
     postgresops.dbcon.commit()
     
@@ -114,11 +114,11 @@ def get_tasks(where=''):
 
 def row_for_task(task):
     return (task.id, task.command, task.profile_tag, task.prerequisites, task.start_after, task.deadline_s, task.start_time, task.end_time, task.cpu_usage_s, task.status,
-                 task.progress_steps_done, task.progress_steps_total, task.step_description, task.step_percent_done, task.log_file )
+                 task.progress_steps_done, task.progress_steps_total, task.step_description, task.step_progress_str, task.log_file )
     
 def task_for_row(row):
     task = Task()
     (task.id, task.command, task.profile_tag, task.prerequisites, task.start_after, task.deadline_s, task.start_time, task.end_time, task.cpu_usage_s, task.status,
-                 task.progress_steps_done, task.progress_steps_total, task.step_description, task.step_percent_done, task.log_file ) = row;
+                 task.progress_steps_done, task.progress_steps_total, task.step_description, task.step_progress_str, task.log_file ) = row;
     return task
     

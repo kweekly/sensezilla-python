@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
-import time
+import time, os, sys
+import config
 
 def str_to_date(dstr):
     try:
@@ -55,3 +56,21 @@ def date_to_str(dat):
     
 def date_to_unix(dat):
     return time.mktime(dat.timetuple())
+
+def list_sources():
+    ret = []
+    for file in os.listdir(config.map['global']['source_dir']):
+        if ( file.endswith('.src') ):
+            name = file[file.find('/')+1:-4]
+            ret.append(name)
+    return ret
+
+def list_ids(source):
+     fmap = config.read_struct(config.map['global']['source_dir']+'/'+source+".src");
+     if fmap.has_key('devices'):
+         return fmap['devices']
+     else:
+         return []
+     
+def read_source(source):
+     return config.read_struct(config.map['global']['source_dir']+'/'+source+".src");
