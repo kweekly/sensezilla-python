@@ -1,0 +1,8 @@
+driver = SMAP
+url = http://sensezilla.eecs.berkeley.edu/backend/
+
+# default units are in "millis" 
+tunits = m
+vunits = m
+
+## add devices here

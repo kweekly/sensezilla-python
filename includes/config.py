@@ -19,6 +19,8 @@ message_dir = root+"/messages"
 module_dir = root+"/modules"
 include_dir = root+"/includes"
 mission_dir = root+"/conf"
+flow_dir = root+"/flows"
+source_dir = root+"/sources"
 
 #include all directories
 sys.path.insert(0,root);
@@ -92,7 +94,8 @@ class IPCMap:
         return self.innermap.items();
 
 
-map = IPCMap({'global':IPCMap({'root_dir':root,'message_dir':message_dir, 'module_dir':module_dir, 'include_dir':include_dir, 'mission_dir':mission_dir},modname='global')});
+map = IPCMap({'global':IPCMap({'root_dir':root,'message_dir':message_dir, 'module_dir':module_dir, 'include_dir':include_dir, 'mission_dir':mission_dir, 
+                               'flow_dir':flow_dir,'source_dir':source_dir},modname='global')});
 
 
 def check_key( mod_name, key):
@@ -104,6 +107,100 @@ def check_key( mod_name, key):
 
 from mod_config import mod_config_IF;
 
+def read_struct(conf_file, verbose=False):
+    import re
+    global map
+    
+    wsexpr = re.compile(r"^\s*$");
+    comexpr = re.compile(r"^(?P<line>.*?)#.*$")
+    incexpr = re.compile(r"^\s*include\s+\"(?P<file>.*?)\"\s*$");
+    expr = re.compile(r"^\s*(?P<key>\S+)\s*(?P<oper>\S+?)\s*(?P<val>\S+)\s*$");
+    expr2 = re.compile(r"^\s*(?P<key>\S+)\s*(?P<oper>\S+?)\s*\"(?P<val>.*?)\"\s*$");
+    
+    lmap = {}
+    success = False
+    try :
+        f = open(conf_file, 'r')
+        line_no = 0
+        for line in f:
+            line = line.rstrip()
+            line_no += 1
+        
+            match = comexpr.match(line);
+            if match :
+                cline = match.group('line');
+            else:
+                cline = line;    
+                
+            if ( wsexpr.match(cline) ):
+                continue;
+            
+            incmatch = incexpr.match(cline);
+            if incmatch :
+                if incmatch.group('file')[0] == '/':
+                    read_struct(incmatch.group('file'),verbose);
+                else:
+                    read_struct(root+"/conf/"+incmatch.group('file'),verbose);
+                continue;
+
+            for key in lmap.keys():
+                if type(lmap[key]) is str:
+                    cline = cline.replace("$("+key+")", lmap[key]);
+            
+            match = expr.match(cline);
+            match2 = expr2.match(cline);
+            
+            if match2 :
+                key = match2.group('key');
+                val = match2.group('val');
+                oper = match2.group('oper');
+            elif match :
+                key = match.group('key');
+                val = match.group('val');
+                oper = match.group('oper');
+            else:
+                print conf_file+":",line_no,": Syntax error \""+line+"\""
+                continue;            
+
+            if oper == '=' :
+                if lmap.has_key(key):
+                    if (verbose): print conf_file+":",line_no,": Already contains key (overriding) \""+key+"\"";
+                else:
+                    if (verbose): print conf_file+":"+" Setting "+key+" to \""+val+"\""; 
+                    lmap[key] = val;
+            elif oper == '@=' :
+                if lmap.has_key(key):
+                    if (verbose): print conf_file+":",line_no,": Already contains array (overriding) \""+key+"\"";
+                else:
+                    if (verbose): print conf_file+":"+" Setting "+key+" to [\""+val+"\"]"; 
+
+                lmap[key] = [val];            
+            elif oper == '@+' :
+                if lmap.has_key(key):
+                    if (verbose): print conf_file+":"+" Appending to "+key+" value [\""+val+"\"]";
+                    lmap[key].append(val) 
+                else:
+                    conf_file+":",line_no,": Array does not exist \""+key+"\""
+                    lmap[key] = [val]  
+            else :
+                print conf_file+":",line_no,": Invalid operator '"+oper+"'"
+                
+        success = True
+    except IOError, msg:
+        print "ERROR: Could not load config file ",conf_file,":",msg
+
+    # if file doesn't exist then f.close() will fail
+    try:
+        f.close()
+    except:
+        pass
+    
+    if success:
+        return lmap
+    else:
+        return None
+    
+            
 
 def load_conf(conf_file, verbose=False):
     import re
@@ -117,7 +214,7 @@ def load_conf(conf_file, verbose=False):
     sectexpr = re.compile(r"^\s*\[(?P<sect>.+?)\]\s*$");
     incexpr = re.compile(r"^\s*include\s+\"(?P<file>.*?)\"\s*$");
     expr = re.compile(r"^\s*(?P<key>\S+)\s*(?P<oper>\S+?)\s*(?P<val>\S+)\s*$");
-    expr2 = re.compile(r"^\s*(?P<key>\S+)\s*(?P<oper>\S+?)\s*\"(?P<val>.*?)\"\s*$");
+    expr2 =re.compile(r"^\s*(?P<key>\S+)\s*(?P<oper>\S+?)\s*\"(?P<val>.*?)\"\s*$");
     try :
         f = open(conf_file,'r');
         line_no = 0;

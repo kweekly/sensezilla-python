@@ -1,0 +1,9 @@
+driver = COSM
+apikey = YOUR_API_KEY_HERE
+
+# default units are in "millis" 
+tunits = m
+vunits = m
+
+## add devices here ( feed ids + datastream name, i.e. last part of URL )
+devices @= 504/datastreams/energy
