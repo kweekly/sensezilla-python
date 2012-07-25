@@ -142,7 +142,7 @@ def child_start_task(task):
     try:
         child.fout = open(child.task.log_file,'a',0)
     except IOError,msg:
-        child.fout = stdout
+        child.fout = sys.stdout
         child_write_out(child,"Couldn't open log file for writing: "+msg)
         
     try:
