@@ -152,7 +152,7 @@ def read_struct(conf_file, verbose=False):
                 except KeyError:pass
                 try:
                     cline = cline.replace("$("+key+")", map['global'][key])
-                except KeyError:pass
+                except Error:pass
                  
             match = expr.match(cline);
             match2 = expr2.match(cline);
