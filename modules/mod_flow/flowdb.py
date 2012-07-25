@@ -23,6 +23,7 @@ class Flow:
         self.source_name = ''
         self.source_id = ''
         self.task_ids = []
+        self.file_ids = []
         self.status = STOPPED
         
 
@@ -41,18 +42,20 @@ def initdb():
           ("source_name","varchar"),
           ("source_id","varchar"),
           ("task_ids","integer[]"),
+          ("file_ids","integer[]"),
           ("status","integer")
           ))
     
 def add_flow(flow):
     postgresops.dbcur.execute("INSERT INTO flows.curflows"+ 
-                "(flowdef,time_from,time_to,source_name,source_id,task_ids,status) "+
+                "(flowdef,time_from,time_to,source_name,source_id,task_ids,file_ids,status) "+
                 "VALUES ("+"%s,"*6+"%s)",row_for_flow(flow))
     postgresops.dbcon.commit()
     
 def update_entire_flow(flow):
     postgresops.dbcur.execute("UPDATE flows.curflows SET"+
-                              "flowdef=%s,time_from=%s,time_to=%s,source_name=%s,source_id=%s,task_ids=%s,status=%s",row_for_task(task))
+                              "flowdef=%s,time_from=%s,time_to=%s,source_name=%s,source_id=%s,task_ids=%s,file_ids=%s,status=%s where time_from=%s and time_to=%s and source_name=%s and source_id=%s",
+                                    row_for_task(task) + [flow.time_from,flow.time_to,flow.source_name,flow.source_id] )
     postgresops.dbcon.commit()
     
 def update_flow(flow,field_name,field_val):
@@ -61,7 +64,7 @@ def update_flow(flow,field_name,field_val):
                               (field_val,flow.time_from,flow.time_to,flow.source_name,flow.source_id))
     postgresops.dbcon.commit()
     
-def update_flow_mult(flowtask,fields):
+def update_flow_mult(flow,fields):
     for field,val in fields:
         postgresops.check_evil(field);
         
@@ -99,12 +102,12 @@ def count(where=''):
     return postgresops.dbcur.fetchone()[0];
 
 def row_for_flow(flow):
-    return ( flow.flowdef.name, flow.time_from, flow.time_to, flow.source_name, flow.source_id, flow.task_ids, flow.status )
+    return ( flow.flowdef.name, flow.time_from, flow.time_to, flow.source_name, flow.source_id, flow.task_ids, flow.file_ids, flow.status )
     
 def flow_for_row(row):
     from flow_processor import read_flow_file
     flow = Flow()
-    ( fname, flow.time_from, flow.time_to, flow.source_name, flow.source_id, flow.task_ids, flow.status ) = row;
+    ( fname, flow.time_from, flow.time_to, flow.source_name, flow.source_id, flow.task_ids, flow.file_ids, flow.status ) = row;
     flow.flowdef = read_flow_file(fname);
     return flow
     

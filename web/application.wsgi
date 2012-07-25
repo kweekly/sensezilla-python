@@ -76,6 +76,21 @@ def do_tasks(environ,start_response):
                 error_tasks=error_tasks,
                 done_tasks=done_tasks
             ))]
+    
+def do_flows(environ,start_response):
+    from mod_flow import flowdb
+    
+    flowdb.connect()
+    env = Environment(loader=FileSystemLoader(environ['DOCUMENT_ROOT']));
+    template = env.get_template('flows.html')
+    start_response('200 OK',[('Content-Type','text/html')])
+    
+
+    ## getting flow info
+    active_flows = flowdb.get_flows(where='status = %d'%(flowdb.RUNNING))
+
+    return [str(template.render(
+            ))]
 
 def do_admin(environ, start_response):
     start_response('200 OK',[('Content-Type','text/html')])
@@ -227,6 +242,8 @@ def application(environ, start_response):
         return do_tasks(environ,start_response)
     elif (req == '/showlog'):
         return do_showlog(environ,start_response)
+    elif (req == '/flows'):
+        return do_flows(environ,start_response)
     else:
         start_response('301 Redirect', [('Location', '/index')]);
         return []

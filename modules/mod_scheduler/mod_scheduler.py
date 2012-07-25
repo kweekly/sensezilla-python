@@ -143,7 +143,7 @@ def child_start_task(task):
         child.fout = open(child.task.log_file,'a',0)
     except IOError,msg:
         child.fout = sys.stdout
-        child_write_out(child,"Couldn't open log file for writing: "+msg)
+        child_write_out(child,"Couldn't open log file for writing: "+str(msg))
         
     try:
         child.process = asyncprocess.Popen(task.command.split(' '), stdin=asyncprocess.PIPE, stderr=asyncprocess.PIPE, stdout=asyncprocess.PIPE, bufsize=1, universal_newlines=True);

@@ -8,7 +8,7 @@ if 'SENSEZILLA_DIR' not in os.environ:
 
 sys.path.insert(0,os.environ['SENSEZILLA_DIR']+"/includes");
 import config
-import util
+import utils
 import unixIPC
 import asyncprocess
 import signal

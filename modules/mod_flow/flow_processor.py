@@ -52,19 +52,26 @@ class FlowDef:
         for file in self.files:
             if 'OUTPUT' not in [v[0] for v in file.dests]:
                 if not pretend:
-                    tfile = tempfile.NamedTemporaryFile('w', dir=dir, delete=False)
-                    file.fname = tfile.name;
-                    tfile.close()
+                    if file.directory:
+                        file.fname = tempfile.mkdtemp(dir=dir)
+                    else:
+                        tfile = tempfile.NamedTemporaryFile('w', dir=dir, delete=False)
+                        file.fname = tfile.name;
+                        tfile.close()
                 else:
                     file.fname = os.tempnam(dir)
             else:
                 file.fname = dir+'/outputs/%s.O%d_%s_%s_%d_to_%d'%(file.src.name,file.index,source_name,source_id.replace('/','.'),
                                                                    utils.date_to_unix(time_from),utils.date_to_unix(time_to))
-                if not pretend:
-                    fout = open(file.fname,'w')
-                    fout.close()
+                if file.directory:
+                    if not pretend:
+                        os.mkdir(file.fname)
+                else:
+                    if not pretend: 
+                        fout = open(file.fname,'w')
+                        fout.close()
                 
-            #print "Created file : "+file.fname
+            print "Created file : "+file.fname
 
 
         # generate dictionary of substitutions
@@ -92,11 +99,17 @@ class FlowDef:
             for file in self.files:
                 if ( file.src == step ):
                     ofile = file
-                    cmd = cmd.replace('%%O%d'%file.index,file.fname)
+                    if file.directory:
+                        cmd = cmd.replace('%%O%dD'%file.index,file.fname)
+                    else:
+                        cmd = cmd.replace('%%O%d'%file.index,file.fname)
                 else:
                     for destn,desti in file.dests:
                         if ( destn == step ):
-                            cmd = cmd.replace('%%I%d'%desti,file.fname)
+                            if file.directory:
+                                cmd = cmd.replace('%%I%dD'%desti,file.fname)
+                            else:
+                                cmd = cmd.replace('%%I%d'%desti,file.fname)
                 
             #print '\n'+cmd+'\n'
             task = scheduledb.Task()
@@ -153,6 +166,11 @@ def read_flow_file(fname):
             file.src = step
             file.dests = []
             file.index = int(step.cmd[idx+2:idx+3])
+            if len(step.cmd) > idx+3 and step.cmd[idx+3] == 'D':
+                file.directory = True
+            else:
+                file.directory = False
+                
             flow.files.append(file)
             
     for step in flow.steps:
@@ -168,6 +186,9 @@ def read_flow_file(fname):
                 if ( file.src.name == outspec[0:idx2] and file.index == int(outspec[idx2+2:idx2+3])):
                     found = True
                     file.dests.append((step,int(step.cmd[idx+2:idx+3])))
+                    if len(step.cmd) > idx+3 and step.cmd[idx+3] == 'D' and not file.directory:
+                        print "ERROR: Output file %d from %s was specified as a directory, but task %s believes its not"%(file.index,file.src.name,step.name)
+                        sys.exit(1)
                     break
                 
             if ( not found ):
