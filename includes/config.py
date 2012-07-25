@@ -149,10 +149,10 @@ def read_struct(conf_file, verbose=False):
                 key = cline[idx+2:cline.find(')',idx)]
                 try:
                     cline = cline.replace("$("+key+")", lmap[key])
-                except KeyError:pass
+                except:pass
                 try:
                     cline = cline.replace("$("+key+")", map['global'][key])
-                except Error:pass
+                except:pass
                  
             match = expr.match(cline);
             match2 = expr2.match(cline);
