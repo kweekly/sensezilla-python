@@ -27,7 +27,7 @@ class FlowDef:
                 ids = utils.list_ids(name)
                 for id in ids:
                     self.run(time_from, time_to, name, id, pretend)
-                return
+            return
                             
         elif source_id == None:
             ids = utils.list_ids(source_name)
