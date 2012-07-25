@@ -7,7 +7,67 @@
 <h2>Sensezilla Server Status</h2>
 <a href="index">Status</a> | <a href="tasks">Tasks</a> | <a href="/flows">Flows</a> 
 <h3>Active Flows</h3>
+<table>
+<th>Name</th>
+<th>Time From</th>
+<th>Time To</th>
+<th>Num Flows</th>
+
+{% for flowrow in active_flows %}
+<tr>
+<td>{{ flowrow[0] }}</td>
+<td>{{ flowrow[1] }}</td>
+<td>{{ flowrow[2] }}</td>
+<td>{{ flowrow[3] }}</td>
+</tr>
+{% endfor %}
+</table>
 
 
+<h3>Last 15 Completed Flows</h3>
+<table>
+<th>Name</th>
+<th>Time From</th>
+<th>Time To</th>
+<th>Num Flows</th>
+
+{% for flowrow in done_flows %}
+<tr>
+<td>{{ flowrow[0] }}</td>
+<td>{{ flowrow[1] }}</td>
+<td>{{ flowrow[2] }}</td>
+<td>{{ flowrow[3] }}</td>
+</tr>
+{% endfor %}
+</table>
+
+<h3>File Cache</h3>
+<table class=tasks>
+<tr>
+<th>id</th>
+<th>Path</th>
+<th>Source Name</th>
+<th>Source ID</th>
+<th>Time from</th>
+<th>Time to</th>
+<th>Steps</th>
+<th>Status</th>
+<th>Task ID</th>
+</tr>
+
+{% for file in file_cache %}
+<tr>
+<td>{{ file.id }}</td>
+<td class=tiny>{{ file.file_name }}</td>
+<td>{{ file.source_name }}</td>
+<td>{{ file.source_id }} </td>
+<td>{{ file.time_from }} </td>
+<td>{{ file.time_to }} </td>
+<td>{{ file.steps }}</td>
+<td>{{ file.statusstr }}</td>
+<td>{{ file.idstr }}</td>
+</tr>
+{% endfor %}
+</table>
 </body>
 </html>

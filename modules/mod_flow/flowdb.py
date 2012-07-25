@@ -49,7 +49,7 @@ def initdb():
 def add_flow(flow):
     postgresops.dbcur.execute("INSERT INTO flows.curflows"+ 
                 "(flowdef,time_from,time_to,source_name,source_id,task_ids,file_ids,status) "+
-                "VALUES ("+"%s,"*6+"%s)",row_for_flow(flow))
+                "VALUES ("+"%s,"*7+"%s)",row_for_flow(flow))
     postgresops.dbcon.commit()
     
 def update_entire_flow(flow):

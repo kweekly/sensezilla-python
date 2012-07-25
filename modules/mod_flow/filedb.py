@@ -7,10 +7,12 @@ from datetime import *
 
 (
 INVALID,
-VALID
-) = range(2)
+VALID,
+FAIL
+) = range(3)
 
-
+id_rgen = random.Random()
+id_rgen.seed()
 
 class File:
     def __init__(self):
@@ -42,7 +44,7 @@ def initdb():
           ("time_to","timestamp"),
           ("source_name","varchar"),
           ("source_id","varchar"),
-          ("steps","varchar[]"),
+          ("steps","varchar"),
           ("status","integer"),
           ("task_id","integer")
           ))
@@ -55,6 +57,15 @@ def next_file_id():
             break
     
     return newint    
+    
+ 
+def check_cache():
+    postgresops.dbcur.execute("SELECT id,file_name from flows.files where status=%s",(VALID,))
+    rows = postgresops.dbcur.fetchall()
+    for id,fname in rows:
+        if not os.path.exists(fname):
+            print "Cache fail: %s doesn't exist, removing from filedb"%(fname)
+            postgresops.dbcur.execute("DELETE from flows.files where id=%s",(id,))
     
     
 def add_file(file):
@@ -84,7 +95,7 @@ def update_file_mult(file,fields):
     postgresops.dbcon.commit()
     
 
-def get_files(where='',orderby='',limit=None):
+def get_files(where='',orderby='',limit=None,params=()):
     extra = ''
     if where != '':
         extra += ' WHERE '+where
@@ -95,7 +106,7 @@ def get_files(where='',orderby='',limit=None):
     
     retval = []
     
-    postgresops.dbcur.execute("SELECT * from flows.files"+extra+";")
+    postgresops.dbcur.execute("SELECT * from flows.files"+extra+";",params)
 
         
     rows = postgresops.dbcur.fetchall()

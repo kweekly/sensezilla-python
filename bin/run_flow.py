@@ -19,10 +19,11 @@ Usage: run_flow.py [list | run]
     
     list : List available flows to run
     
-    run <flow name> [--from <from time>] [--to <to time>] [--pretend] [<source name> <device identifier>] 
+    run <flow name> [--from <from time>] [--to <to time>] [--pretend] [--nocache] [<source name> <device identifier>] 
         Run the given flow.  Optional time interval, default is past day.
         Optional source name and device identifier, default is all known devices.
         Pretend is for testing, doesn't actually add the tasks to the task manager
+        Nocache redoes all of the steps instead of looking for cached steps
 """
 elif (sys.argv[0] == 'list'):
     for file in os.listdir(config.map['global']['flow_dir']):

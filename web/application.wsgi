@@ -4,7 +4,7 @@ import time
 import psutil
 import cgi
 
-from jinja2 import *
+from jinja2 import * 
 
 def do_index(environ, start_response):
     env = Environment(loader=FileSystemLoader(environ['DOCUMENT_ROOT']));
@@ -36,6 +36,27 @@ def do_index(environ, start_response):
                   cpu_info=cpu_info,phymem_info=phymem_info,virtmem_info=virtmem_info,disk_info=disk_info,
                   procs_connected=mod_exec_IF.connected(), procs=procs
                   ))]    
+
+def apply_status_task(task):
+    from mod_scheduler import scheduledb
+    if ( task.status == scheduledb.STOPPED ):
+        task.statusstr = "Stopped"
+    elif ( task.status == scheduledb.WAITING_FOR_INPUT ):
+        task.statusstr = "Waiting for Prerequisite IDs:<br>["+','.join([str(i) for i in task.prerequisites])+"]"
+    elif ( task.status == scheduledb.WAITING_FOR_START ):
+        task.statusstr = "Waiting until "+task.start_time.strftime("%m/%d/%Y %H:%M:%S")+" to start"
+    elif ( task.status == scheduledb.WAITING_FOR_CPU ):
+        task.statusstr = "In Queue"
+    elif ( task.status == scheduledb.RUNNING ):
+        task.statusstr = "Running"
+    elif ( task.status == scheduledb.PAUSED ):
+        task.statusstr = "Paused"
+    elif ( task.status == scheduledb.ERROR_CRASH ):
+        task.statusstr = "Crashed"
+    elif ( task.status == scheduledb.ERROR_TIMEOUT ):
+        task.statusstr = "Timed Out"
+    elif ( task.status == scheduledb.DONE ):
+        task.statusstr = "Finished"
     
 def do_tasks(environ,start_response):
     from mod_scheduler import scheduledb
@@ -51,24 +72,7 @@ def do_tasks(environ,start_response):
     error_tasks = scheduledb.get_tasks(where='status >= %d'%(scheduledb.ERROR_CRASH),orderby="end_time desc")
     done_tasks = scheduledb.get_tasks(where='status = %d'%(scheduledb.DONE),orderby="start_time desc",limit=15)
     for task in active_tasks+error_tasks+done_tasks:
-        if ( task.status == scheduledb.STOPPED ):
-            task.statusstr = "Stopped"
-        elif ( task.status == scheduledb.WAITING_FOR_INPUT ):
-            task.statusstr = "Waiting for Prerequisite IDs:<br>["+','.join([str(i) for i in task.prerequisites])+"]"
-        elif ( task.status == scheduledb.WAITING_FOR_START ):
-            task.statusstr = "Waiting until "+task.start_time.strftime("%m/%d/%Y %H:%M:%S")+" to start"
-        elif ( task.status == scheduledb.WAITING_FOR_CPU ):
-            task.statusstr = "In Queue"
-        elif ( task.status == scheduledb.RUNNING ):
-            task.statusstr = "Running"
-        elif ( task.status == scheduledb.PAUSED ):
-            task.statusstr = "Paused"
-        elif ( task.status == scheduledb.ERROR_CRASH ):
-            task.statusstr = "Crashed"
-        elif ( task.status == scheduledb.ERROR_TIMEOUT ):
-            task.statusstr = "Timed Out"
-        elif ( task.status == scheduledb.DONE ):
-            task.statusstr = "Finished"
+        apply_status_task(task)
 
     return [str(template.render(
                 dbconnected=dbconnected,
@@ -79,17 +83,39 @@ def do_tasks(environ,start_response):
     
 def do_flows(environ,start_response):
     from mod_flow import flowdb
+    from mod_scheduler import scheduledb
+    import postgresops
     
     flowdb.connect()
     env = Environment(loader=FileSystemLoader(environ['DOCUMENT_ROOT']));
     template = env.get_template('flows.html')
     start_response('200 OK',[('Content-Type','text/html')])
     
-
     ## getting flow info
-    active_flows = flowdb.get_flows(where='status = %d'%(flowdb.RUNNING))
+    postgresops.dbcur.execute("SELECT flowdef,time_from,time_to,count(*) from flows.curflows where status=%s group by flowdef,time_from,time_to",(flowdb.RUNNING,))
+    active_flows = postgresops.dbcur.fetchall()
+    postgresops.dbcur.execute("SELECT flowdef,time_from,time_to,count(*) from flows.curflows where status=%s group by flowdef,time_from,time_to order by time_from desc limit 15 ",(flowdb.DONE,))
+    done_flows = postgresops.dbcur.fetchall()
+
+    from mod_flow import filedb
+    file_cache = filedb.get_files()
+    for f in file_cache:
+        if f.status == filedb.INVALID or f.status == filedb.FAIL:
+            if f.status == filedb.INVALID:
+                f.statusstr = "INVALID"
+            else:
+                f.statusstr = "FAIL"
+            task = scheduledb.get_task_by_id(f.task_id)
+            apply_status_task(task)
+            f.idstr = str(f.task_id)+' ('+task.statusstr+')'
+        elif f.status == filedb.VALID:
+            f.statusstr = "VALID"
+            f.idstr = str(f.task_id)
 
     return [str(template.render(
+                active_flows=active_flows,
+                done_flows=done_flows,
+                file_cache=file_cache
             ))]
 
 def do_admin(environ, start_response):
