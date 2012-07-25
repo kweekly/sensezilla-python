@@ -16,7 +16,7 @@ class File:pass
 
 class Step:pass
 
-class Flow:
+class FlowDef:
     def __init__(self):
         pass
     
@@ -64,21 +64,20 @@ class Flow:
                     fout = open(file.fname,'w')
                     fout.close()
                 
-            print "Created file : "+file.fname
+            #print "Created file : "+file.fname
 
-        # open source file
-        
 
         # generate dictionary of substitutions
         subs = [
                 ('TIME_FROM',int(utils.date_to_unix(time_from))),
                 ('TIME_TO',int(utils.date_to_unix(time_to))),
                 ('SOURCE',source_name),
-                ('DEVICE','"'+source_id+'"')                
+                ('DEVICE',source_id)                
         ]
-        for key,val in smap:
+        
+        for key,val in smap.items():
             if ( type(val) is str ):
-                subs.append((key,val))
+                subs.append(('SOURCE.'+key,val))
 
         if not scheduledb.connected():
             scheduledb.connect();
@@ -89,16 +88,37 @@ class Flow:
                 cmd = cmd.replace('%%{%s}'%subk,str(subv))
             
             # do file subs
+            ofile = None;
             for file in self.files:
                 if ( file.src == step ):
+                    ofile = file
                     cmd = cmd.replace('%%O%d'%file.index,file.fname)
                 else:
                     for destn,desti in file.dests:
                         if ( destn == step ):
                             cmd = cmd.replace('%%I%d'%desti,file.fname)
                 
-            print cmd
+            #print '\n'+cmd+'\n'
             task = scheduledb.Task()
+            task.command = cmd
+            task.status = scheduledb.WAITING_FOR_START
+            task.profile_tag = step.profile
+            if ofile == None: 
+                task.log_file = '/dev/null'
+            else:
+                task.log_file = ofile.fname+'.log'
+            step.task = task
+            
+        for step in self.steps:
+            for file in self.files:
+                for destn,desti in file.dests:
+                    if ( destn == step ):
+                        step.task.prerequisites.append( file.src.task.id )
+        
+        for step in self.steps:
+            print "Inserting task %d : %s\n"%(step.task.id, step.task.command)
+            if not pretend:
+                scheduledb.add_task(step.task)
             
 
 def read_flow_file(fname):
@@ -106,7 +126,7 @@ def read_flow_file(fname):
     if ( lmap == None ):
         raise ValueError("Could not load flow:"+fname)
 
-    flow = Flow();
+    flow = FlowDef();
     flow.name = fname
     flow.source_types = lmap['source_types']
     flow.use_tmp = False if not lmap.has_key('use_tmp') or lmap['use_tmp']=='0' else True
@@ -116,6 +136,10 @@ def read_flow_file(fname):
         step = Step()
         step.name = tsk
         step.profile = lmap[tsk+'.profile']
+        if step.profile not in [i[0:i.find(',')] for i in config.map['mod_scheduler']['profiles']]:
+            print "ERROR: profile tag %s not found in config files"%step.profile
+            sys.exit(1)
+            
         step.cmd = lmap[tsk+'.cmd']
         flow.steps.append(step)
         

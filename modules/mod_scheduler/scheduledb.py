@@ -8,18 +8,19 @@ from datetime import *
 STOPPED,
 WAITING_FOR_INPUT,
 WAITING_FOR_START,
+WAITING_FOR_CPU,
 RUNNING,
 PAUSED,
 DONE,
 ERROR_CRASH,
 ERROR_TIMEOUT
-) = range(0,8)
+) = range(0,9)
 
 id_rgen = random.Random()
 id_rgen.seed()
 
 class Task:
-    def __init__(self):
+    def __init__(self): 
         self.id = next_task_id();
         self.command = 'ls'
         self.profile_tag = ''
@@ -34,6 +35,7 @@ class Task:
         self.progress_steps_total = 0
         self.step_description = ''
         self.step_progress_str = ''
+        self.pid = 0
         self.log_file = '/dev/null'
 
 def connect():
@@ -59,6 +61,7 @@ def initdb():
           ("progress_steps_total","smallint"),
           ("step_description","varchar"),
           ("step_progress_str","varchar"),
+          ("pid","integer"),
           ("log_file","varchar")
           ))
     if res: # if a new table was created, create the index
@@ -77,8 +80,14 @@ def next_task_id():
 
 def add_task(task):
     postgresops.dbcur.execute("INSERT INTO schedule.tasks"+ 
-                "(id,command,profile_tag,prerequisites,start_after,deadline_s,start_time,end_time,cpu_usage_s,status,progress_steps_done,progress_steps_total,step_description,step_progress_str,log_file) "+
-                "VALUES ("+"%s,"*14+"%s)",row_for_task(task))
+                "(id,command,profile_tag,prerequisites,start_after,deadline_s,start_time,end_time,cpu_usage_s,status,progress_steps_done,progress_steps_total,step_description,step_progress_str,pid,log_file) "+
+                "VALUES ("+"%s,"*15+"%s)",row_for_task(task))
+    postgresops.dbcon.commit()
+    
+def update_entire_task(task):
+    postgresops.dbcur.execute("UPDATE schedule.tasks SET"+
+                              "id=%s,command=%s,profile_tag=%s,prerequisites=%s,start_after=%s,deadline_s=%s,start_time=%s,end_time=%s,"+
+                              "cpu_usage_s=%s,status=%s,progress_steps_done=%s,progress_steps_total=%s,step_description=%s,step_progress_str=%s,pid=%s,log_file=%s",row_for_task(task))
     postgresops.dbcon.commit()
     
 def update_task(task,field_name,field_val):
@@ -90,7 +99,7 @@ def update_task_mult(task,fields):
     for field,val in fields:
         postgresops.check_evil(field);
         
-    postgresops.dbcur.execute("UPDATE schedule.tasks SET "+",".join([field+"=%s" for field,val in fields])+" where id=%s",[val for field,val in fields]+task.id)
+    postgresops.dbcur.execute("UPDATE schedule.tasks SET "+",".join([field+"=%s" for field,val in fields])+" where id=%s",[val for field,val in fields]+[task.id])
     postgresops.dbcon.commit()
     
 def get_task_by_id(id):
@@ -99,12 +108,19 @@ def get_task_by_id(id):
         return None
     return task_for_row(postgresops.dbcur.fetchone())
     
-def get_tasks(where=''):
-    retval = []
+def get_tasks(where='',orderby='',limit=None):
+    extra = ''
     if where != '':
-        postgresops.dbcur.execute("SELECT * from schedule.tasks WHERE "+where+";")
-    else:
-        postgresops.dbcur.execute("SELECT * from schedule.tasks;")
+        extra += ' WHERE '+where
+    if orderby != '':
+        extra += ' ORDER BY '+orderby
+    if limit != None:
+        extra += ' LIMIT %d'%limit
+    
+    retval = []
+    
+    postgresops.dbcur.execute("SELECT * from schedule.tasks"+extra+";")
+
         
     rows = postgresops.dbcur.fetchall()
     for row in rows:
@@ -112,13 +128,21 @@ def get_tasks(where=''):
         
     return retval
 
+def count(where=''):
+    if where != '':
+        postgresops.dbcur.execute("SELECT count(*) from schedule.tasks WHERE "+where+";")
+    else:
+        postgresops.dbcur.execute("SELECT count(*) from schedule.tasks;")
+        
+    return postgresops.dbcur.fetchone()[0];
+
 def row_for_task(task):
     return (task.id, task.command, task.profile_tag, task.prerequisites, task.start_after, task.deadline_s, task.start_time, task.end_time, task.cpu_usage_s, task.status,
-                 task.progress_steps_done, task.progress_steps_total, task.step_description, task.step_progress_str, task.log_file )
+                 task.progress_steps_done, task.progress_steps_total, task.step_description, task.step_progress_str, task.pid, task.log_file )
     
 def task_for_row(row):
     task = Task()
     (task.id, task.command, task.profile_tag, task.prerequisites, task.start_after, task.deadline_s, task.start_time, task.end_time, task.cpu_usage_s, task.status,
-                 task.progress_steps_done, task.progress_steps_total, task.step_description, task.step_progress_str, task.log_file ) = row;
+                 task.progress_steps_done, task.progress_steps_total, task.step_description, task.step_progress_str, task.pid, task.log_file ) = row;
     return task
     

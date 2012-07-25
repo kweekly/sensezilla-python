@@ -20,7 +20,7 @@ def connected():
         return False
 
 
-evil_chars = ['\x00','\n','\r','\\',"'",'"','\x1a']
+evil_chars = ['\x00','\n','\r','\\',"'",'"','\x1a',';']
 
 def check_evil(str):
     for ch in str:

@@ -14,6 +14,7 @@ import scheduler_cmd_pb2
 import scheduler_resp_pb2
 import asyncprocess
 import signal
+import psutil
 
 import google.protobuf
 
@@ -21,15 +22,110 @@ import scheduledb
 
 ## CONFIG VARS
 
-DB_CHECK_INTERVAL = config.map['mod_scheduler']['db_check_interval']
-MAX_CHILDREN = config.map['mod_scheduler']['max_children']
-MIN_CHILDREN = config.map['mod_scheduler']['min_children']
-TARGET_CORES = config.map['mod_scheduler']['target_cores']
+DB_CHECK_INTERVAL = float(config.map['mod_scheduler']['db_check_interval'])
+MAX_CHILDREN = float(config.map['mod_scheduler']['max_children'])
 
+CPU_TARGET = float(config.map['mod_scheduler']['cpu_target'])
+CPU_MAX = float(config.map['mod_scheduler']['cpu_max'])
+IO_TARGET = float(config.map['mod_scheduler']['io_target'])
+IO_MAX = float(config.map['mod_scheduler']['io_max'])
+MEM_TARGET = float(config.map['mod_scheduler']['mem_target'])
+MEM_MAX = float(config.map['mod_scheduler']['mem_max'])
+
+class Profile:pass
+
+profiles = {}
+for profstr in config.map['mod_scheduler']['profiles']:
+    p = Profile()
+    pts = profstr.split(',')
+    p.name = pts[0]
+    p.cpu_usage = float(pts[1])
+    p.io_usage = float(pts[2])
+    p.mem_usage = float(pts[3])
+    profiles[p.name] = p
+    
 class ChildProcess:pass
 
 def check_db():
-    pass
+    running_tasks = scheduledb.get_tasks(where='status = %d'%(scheduledb.RUNNING))
+    # check if tasks that were "running" are dead
+    for task in running_tasks[:]:
+        if not psutil.pid_exists(task.pid):
+            print "Error: task %d was RUNNING but pid not found! Assumed dead."
+            task.status = scheduledb.ERROR_CRASH
+            running_tasks.remove(task)
+            scheduledb.update_task(task,'status',task.status)            
+    
+    tasks = scheduledb.get_tasks(where='status >= %d and status <= %d'%(scheduledb.WAITING_FOR_INPUT,scheduledb.PAUSED))
+    
+    # check if a task was waiting on time or another task
+    #print "Checking database, found %d stalled tasks"%(len(tasks))
+    for task in tasks:
+        task.changed = False
+        if (task.status == scheduledb.WAITING_FOR_INPUT or (task.status == scheduledb.WAITING_FOR_START and task.start_after <= datetime.now())):
+            if ( len(task.prerequisites) > 0 and scheduledb.count(where=' or '.join(['id = %d'%i for i in task.prerequisites])+' and status != %d'%(scheduledb.DONE)) > 0):
+                task.status = scheduledb.WAITING_FOR_INPUT
+                task.changed = True
+            else:
+                task.status = scheduledb.WAITING_FOR_CPU
+                task.changed = True
+        
+    # check if there is CPU available for a new task        
+    curcpu = 0
+    curio = 0
+    curmem = 0
+    
+    for task in running_tasks:
+        prof = profiles[task.profile_tag]
+        curcpu += prof.cpu_usage
+        curio += prof.io_usage
+        curmem += prof.mem_usage
+    
+    #print "Current cpu=%.2f%% io=%.2fMBps mem=%.2fMB"%(curcpu*100.0,curio,curmem)
+    tasks_to_start = []
+    if ( len(running_tasks) < MAX_CHILDREN):
+        if (curcpu < CPU_TARGET):
+            for task in tasks:
+                prof = profiles[task.profile_tag]
+                if ( task.status == scheduledb.WAITING_FOR_CPU and prof.cpu_usage > 0 and 
+                     prof.cpu_usage + curcpu <= CPU_MAX and prof.io_usage + curio <= IO_MAX and prof.mem_usage + curmem <= MEM_MAX ):
+                        tasks_to_start.append(task)
+                        curcpu += prof.cpu_usage
+                        curmem += prof.mem_usage
+                        curio += prof.io_usage
+                        task.status = scheduledb.RUNNING
+                        
+        if (curmem < MEM_TARGET):
+            for task in tasks:
+                prof = profiles[task.profile_tag]
+                if ( task.status == scheduledb.WAITING_FOR_CPU and prof.mem_usage > 0 and 
+                     prof.cpu_usage + curcpu <= CPU_MAX and prof.io_usage + curio <= IO_MAX and prof.mem_usage + curmem <= MEM_MAX ):
+                        tasks_to_start.append(task)
+                        curcpu += prof.cpu_usage
+                        curmem += prof.mem_usage
+                        curio += prof.io_usage
+                        task.status = scheduledb.RUNNING
+                        
+        if (curio < IO_TARGET):
+            for task in tasks:
+                prof = profiles[task.profile_tag]
+                if ( task.status == scheduledb.WAITING_FOR_CPU and prof.io_usage > 0 and 
+                     prof.cpu_usage + curcpu <= CPU_MAX and prof.io_usage + curio <= IO_MAX and prof.mem_usage + curmem <= MEM_MAX ):
+                        tasks_to_start.append(task)
+                        curcpu += prof.cpu_usage
+                        curmem += prof.mem_usage
+                        curio += prof.io_usage
+                        task.status = scheduledb.RUNNING
+                       
+    # start the tasks we should start
+    for task in tasks_to_start:
+        child_start_task(task)
+     
+    # update the database
+    for task in tasks:
+        if task.changed:
+            scheduledb.update_task(task,'status',task.status)
+        
 
 def find_child_by_id(id):
     for child in children:
@@ -50,14 +146,16 @@ def child_start_task(task):
         child_write_out(child,"Couldn't open log file for writing: "+msg)
         
     try:
-        child.process = asynchprocess.Popen(task.command.split(' ', 1), stdin=asyncprocess.PIPE, stderr=asyncprocess.PIPE, stdout=asyncprocess.PIPE, bufsize=1, universal_newlines=True);
-        child.status = scheduledb.RUNNING
+        child.process = asyncprocess.Popen(task.command.split(' '), stdin=asyncprocess.PIPE, stderr=asyncprocess.PIPE, stdout=asyncprocess.PIPE, bufsize=1, universal_newlines=True);
+        child.task.pid = child.process.pid
+        child.task.status = scheduledb.RUNNING
         child.start_time = datetime.now()
-        scheduledb.update_task_mult(child.task,[['start_time',child.start_time]
-                                                ['status',child.status]
+        scheduledb.update_task_mult(child.task,[['start_time',child.start_time],
+                                                ['status',child.task.status],
+                                                ['pid',child.task.pid]
                                                 ])
     except OSError,msg:
-        child_write_out(child,"Couldn't start process: "+msg)
+        child_write_out(child,"Couldn't start process: "+str(msg))
         child.process = None;
         child_died(child,-1);
     
@@ -78,6 +176,7 @@ def child_timed_out(child):
 statexpr = re.compile(r"^PROGRESS STEP (?P<stepd>\d+) OF (?P<stept>\d+) \"(?P<stepn>.+?)\" (?P<prog>.*?) DONE$")
 
 def child_write_out(child, msg):
+    msg = msg.rstrip();
     m = statexpr.match(msg)
     if m :
         child.task.progress_steps_done = m.group('stepd')
@@ -122,10 +221,10 @@ def child_died(child, retval):
         child.task.status = scheduledb.DONE        
         
     scheduledb.update_task_mult(child.task,[
-            ['end_time',child.end_time],
-            ['status',child.status]                        
+            ['end_time',child.task.end_time],
+            ['status',child.task.status]                        
     ])
-    if ( child.fout != stdout ):
+    if ( child.fout != sys.stdout ):
         child.fout.close()
         
     children.remove(child)
@@ -231,7 +330,7 @@ while True:
         if outdat != None and outdat != "":
             child_write_out(child, outdat)
         if errdat != None and errdat != "":
-            child_write_out(child, outdat)
+            child_write_out(child, errdat)
         
         retval = child.process.poll() 
         if retval != None: # child died

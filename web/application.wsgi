@@ -47,29 +47,39 @@ def do_tasks(environ,start_response):
     start_response('200 OK',[('Content-Type','text/html')])
 
     ## getting task info
-    tasks = scheduledb.get_tasks(where='status >= %d AND status <= %d'%(scheduledb.WAITING_FOR_INPUT,scheduledb.RUNNING))
-    for task in tasks:
+    active_tasks = scheduledb.get_tasks(where='status >= %d AND status <= %d'%(scheduledb.WAITING_FOR_INPUT,scheduledb.PAUSED),orderby="status desc")
+    error_tasks = scheduledb.get_tasks(where='status >= %d'%(scheduledb.ERROR_CRASH),orderby="end_time desc")
+    done_tasks = scheduledb.get_tasks(where='status = %d'%(scheduledb.DONE),orderby="start_time desc",limit=15)
+    for task in active_tasks+error_tasks+done_tasks:
         if ( task.status == scheduledb.STOPPED ):
             task.statusstr = "Stopped"
         elif ( task.status == scheduledb.WAITING_FOR_INPUT ):
-            task.statusstr = "Waiting for Prerequisite IDs:<br>["+','.join(task.prerequisites)+"]"
+            task.statusstr = "Waiting for Prerequisite IDs:<br>["+','.join([str(i) for i in task.prerequisites])+"]"
         elif ( task.status == scheduledb.WAITING_FOR_START ):
-            task.statusstr = "Waiting until "+task.start_time.strftime("%m/%d/%Y %H:%M%S")+" to start"
+            task.statusstr = "Waiting until "+task.start_time.strftime("%m/%d/%Y %H:%M:%S")+" to start"
+        elif ( task.status == scheduledb.WAITING_FOR_CPU ):
+            task.statusstr = "In Queue"
         elif ( task.status == scheduledb.RUNNING ):
             task.statusstr = "Running"
         elif ( task.status == scheduledb.PAUSED ):
             task.statusstr = "Paused"
-
-
+        elif ( task.status == scheduledb.ERROR_CRASH ):
+            task.statusstr = "Crashed"
+        elif ( task.status == scheduledb.ERROR_TIMEOUT ):
+            task.statusstr = "Timed Out"
+        elif ( task.status == scheduledb.DONE ):
+            task.statusstr = "Finished"
 
     return [str(template.render(
                 dbconnected=dbconnected,
-                tasks=tasks
+                active_tasks=active_tasks,
+                error_tasks=error_tasks,
+                done_tasks=done_tasks
             ))]
 
 def do_admin(environ, start_response):
     start_response('200 OK',[('Content-Type','text/html')])
-    resp = ['<html><head><meta http-equiv="Refresh" content="10;url=/index" /></head><body>']
+    resp = ['<html><head><meta http-equiv="Refresh" content="10;url=javascript:window.history.back()" /></head><body>']
     resp.append("<h2>Admin Command Progress</h2>\n<pre>\n");
     d = cgi.parse_qs(environ['QUERY_STRING'])
     if ( 'modname' in d ):
@@ -116,14 +126,82 @@ def do_admin(environ, start_response):
                     resp.append("fail.\n")
         else:
             resp.append("No action given\n")
+    elif ( 'action' in d ):
+        if d['action'][0] == 'requeueall':
+            from mod_scheduler import scheduledb
+            resp.append("Connecting to schedule DB...")
+            scheduledb.connect()
+            if not scheduledb.connected():
+                resp.append("fail.\n")
+            else:       
+                errortasks = scheduledb.get_tasks(where='status >= %d'%(scheduledb.ERROR_CRASH),orderby="start_time desc")
+                for task in errortasks:
+                    scheduledb.update_task(task,'status',scheduledb.WAITING_FOR_START)
+                return ['<html><script>window.history.back()</script></html>']
+            
+        elif d['action'][0] == 'requeue':
+            from mod_scheduler import scheduledb
+            import postgresops
+            resp.append("Connecting to schedule DB...")
+            scheduledb.connect()
+            if not scheduledb.connected():
+                resp.append("fail.\n")
+            else:
+                resp.append("yay\n")
+                if 'task' in d:
+                    try:
+                        postgresops.check_evil(d['task'][0])
+                        task = scheduledb.get_tasks(where='status >= %d and id = %s'%(scheduledb.ERROR_CRASH,d['task'][0]),orderby="start_time desc")
+                        if ( len(task) != 1):
+                            resp.append("Error 0 or >1 tasks matched!")
+                        else:  
+                            scheduledb.update_task(task[0],'status',scheduledb.WAITING_FOR_START)
+                            return ['<html><script>window.history.back()</script></html>']
+                    except Exception,exp:
+                        resp.append("Exception "+str(exp)+" occurred")                               
+                    
+                else:
+                    resp.append("Did not provide ID\n")
+        else:
+            resp.append("Unknown action %s\n"%d['action'])
     else:
         resp.append("Cannot determine what admin command you want to run\n")
    
-    resp.append("\n\nRedirecting to index.html...\n");
-    resp.append("</pre><a href='/index'>Or go there now</a></body></html>\n") 
+    resp.append("\n\nRedirecting to whence you came...\n");
+    resp.append("</pre><a href='javascript:window.history.back()'>Or go there now</a></body></html>\n") 
     return resp
 
-
+def do_showlog(environ,start_response):
+    start_response('200 OK',[('Content-Type','text/html')])
+    resp = ['<html><body>\n']
+    d = cgi.parse_qs(environ['QUERY_STRING'])
+    if 'taskid' in d:
+        import postgresops
+        from mod_scheduler import scheduledb
+        try:
+            scheduledb.connect()
+            postgresops.check_evil(d['taskid'][0])
+            resp.append("<h2>Log File for Task ID: %s</h2>\n<pre>\n"%d['taskid'][0]);
+            task = scheduledb.get_tasks(where='id = %s'%(d['taskid'][0]),orderby="start_time desc")
+            if ( len(task) != 1):
+                resp.append("Error 0 or >1 tasks matched!")
+            else:
+                fin = open(task[0].log_file,'r')
+                resp.extend(fin.readlines())
+                fin.close()
+        except Exception,exp:
+            resp.append("Exception "+str(exp)+" occurred")
+            
+        resp.append("</pre>\n")
+    else:
+        resp.append("<h2>Last 100 lines of log file for python modules</h2>\n")
+        resp.append("<pre>\n")
+        stdin,stdout = os.popen2("tail -n 100 "+config.map['mod_exec']['logfile'])
+        stdin.close(); resp.extend(stdout.readlines()); stdout.close();
+        resp.append("</pre>\n")  
+    
+    resp.append('</body></html>')
+    return resp
      
 
 def application(environ, start_response):
@@ -147,6 +225,8 @@ def application(environ, start_response):
         return do_admin(environ,start_response)
     elif (req == '/tasks'):
         return do_tasks(environ,start_response)
+    elif (req == '/showlog'):
+        return do_showlog(environ,start_response)
     else:
         start_response('301 Redirect', [('Location', '/index')]);
         return []

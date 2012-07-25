@@ -8,16 +8,26 @@ body
 	font-family:"Courier";
 }
 
-table {
+table.status {
 	border-collapse:collapse;
 	width:50%;
+}
+
+table.tasks
+{
+	border-collapse:collapse;
+	width:100%;
+	table-layout:fixed;
+	word-wrap:break-word;
 }
 
 table, th, td
 {
 	border: 1px solid black;
+	width:auto;
 }
 
-th,td
+td.tiny
 {
+	font-size:50%;
 }

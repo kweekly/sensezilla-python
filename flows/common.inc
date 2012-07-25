@@ -4,5 +4,4 @@ fetcher.cmd = "python $(bin_dir)/fetcher.py fetch --from %{TIME_FROM} --to %{TIM
 
 #minfilter task ( to filter timeseries data into a smoothed version )
 minfilter.profile = cpu_bound
-minfilter.cmd = "LD_LIBRARY_PATH=$(cpp_bin) $(cpp_bin)/fast_filter -csvin %I0 -csvout %O0 -outprec 12 -intr %{SOURCE.intr} -invr %{SOURCE.invr}"
- 
+minfilter.cmd = "env LD_LIBRARY_PATH=$(cpp_bin) $(cpp_bin)/fast_filter -csvin %I0 -csvout %O0 -outprec 12 -intr %{SOURCE.intr} -invr %{SOURCE.invr}"

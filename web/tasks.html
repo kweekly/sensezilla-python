@@ -11,27 +11,80 @@
 PostgreSQL connected : {{ dbconnected }}<br>
 
 <h3>Active Tasks</h3>
-<table>
+<table class=tasks>
 <tr>
 <th>id</th>
+<th>Time Started</th>
+<th>pid</th>
 <th>Command line</th>
 <th>Status</th>
 <th>Current Step</th>
 <th>Step Progress</th>
 <th>Log File</th>
-<th>Profile Tag</th>
 </tr>
 
 
-{% for task in tasks %}
+{% for task in active_tasks %}
 <tr>
 <td>{{ task.id }}</td>
-<td>{{ task.command }}</td>
+<td>{{ task.start_time.ctime() }}</td>
+<td>{{ task.pid }}</td>
+<td class=tiny>{{ task.command }}</td>
 <td>{{ task.statusstr }}</td>
-<td>{{ task.progress_steps_done+1 }} / {{ task.progress_steps_total }} : {{ task.step_description }}</td>
-<td>{{task.step_percent_done}}</td>
-<td>{{task.log_file}}</td>
-<td>{{task.profile_tag}}</td>
+<td>{{ task.progress_steps_done }} / {{ task.progress_steps_total }} : {{ task.step_description }}</td>
+<td>{{task.step_progress_str}}</td>
+<td class=tiny><a href="showlog?taskid={{task.id}}">{{task.log_file}}</a></td>
+</tr>  
+{% endfor %}
+</table>
+
+<h3>Errors</h3>
+<button onclick="window.location='admin?action=requeueall'">Requeue All</button>
+<table class=tasks>
+<tr>
+<th>Administration</th>
+<th>id</th>
+<th>Time Finished</th>
+<th>Command line</th>
+<th>Status</th>
+<th>Current Step</th>
+<th>Step Progress</th>
+<th>Log File</th>
+</tr>
+
+
+{% for task in error_tasks %}
+<tr>
+<td><button onclick="window.location='admin?task={{ task.id }}&action=requeue'">Requeue</button></td>
+<td>{{ task.id }}</td>
+<td>{{ task.end_time.ctime() }}</td>
+<td class=tiny>{{ task.command }}</td>
+<td>{{ task.statusstr }}</td>
+<td>{{ task.progress_steps_done }} / {{ task.progress_steps_total }} : {{ task.step_description }}</td>
+<td>{{task.step_progress_str}}</td>
+<td class=tiny><a href="showlog?taskid={{task.id}}">{{task.log_file}}</a></td>
+</tr>  
+{% endfor %}
+</table>
+
+<h3>Last 15 Completed</h3>
+<table class=tasks>
+<tr>
+<th>id</th>
+<th>Time Finished</th>
+<th>Command line</th>
+<th>Status</th>
+<th>Log File</th>
+</tr>
+
+
+{% for task in done_tasks %}
+<tr>
+<td>{{ task.id }}</td>
+<td>{{ task.end_time.ctime() }}</td>
+<td class=tiny>{{ task.command }}</td>
+<td>{{ task.statusstr }}</td>
+<td class=tiny><a href="showlog?taskid={{task.id}}">{{task.log_file}}</a></td>
 </tr>  
 {% endfor %}
 </table>
