@@ -41,7 +41,7 @@
 {% endfor %}
 </table>
 
-<h3>File Cache</h3>
+<h3>Files in Progress</h3>
 <table class=tasks>
 <tr>
 <th>id</th>
@@ -55,7 +55,36 @@
 <th>Task ID</th>
 </tr>
 
-{% for file in file_cache %}
+{% for file in file_cache_progress %}
+<tr>
+<td>{{ file.id }}</td>
+<td class=tiny>{{ file.file_name }}</td>
+<td>{{ file.source_name }}</td>
+<td>{{ file.source_id }} </td>
+<td>{{ file.time_from }} </td>
+<td>{{ file.time_to }} </td>
+<td>{{ file.steps }}</td>
+<td>{{ file.statusstr }}</td>
+<td>{{ file.idstr }}</td>
+</tr>
+{% endfor %}
+</table>
+
+<h3>Last 15 Files Completed/Failed</h3>
+<table class=tasks>
+<tr>
+<th>id</th>
+<th>Path</th>
+<th>Source Name</th>
+<th>Source ID</th>
+<th>Time from</th>
+<th>Time to</th>
+<th>Steps</th>
+<th>Status</th>
+<th>Task ID</th>
+</tr>
+
+{% for file in file_cache_done %}
 <tr>
 <td>{{ file.id }}</td>
 <td class=tiny>{{ file.file_name }}</td>

@@ -66,7 +66,7 @@ def check_cache():
         if not os.path.exists(fname):
             print "Cache fail: %s doesn't exist, removing from filedb"%(fname)
             postgresops.dbcur.execute("DELETE from flows.files where id=%s",(id,))
-    
+    postgresops.dbcon.commit()
     
 def add_file(file):
     postgresops.dbcur.execute("INSERT INTO flows.files"+ 

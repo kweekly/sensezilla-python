@@ -34,6 +34,17 @@ def check_db():
             elif (status >= scheduledb.ERROR_CRASH ):
                 postgresops.dbcur.execute("update flows.files SET status=%s where id=%s",(filedb.FAIL,fileid))
                 postgresops.dbcon.commit()
+    
+    # update status of files fail->valid or fail->invalid
+    postgresops.dbcur.execute("select files.id,tasks.id,tasks.status from flows.files,schedule.tasks where files.task_id=tasks.id and files.status=%s;",(filedb.FAIL,))
+    rows = postgresops.dbcur.fetchall()
+    for fileid,taskid,status in rows:
+        if ( status == scheduledb.DONE ):
+            postgresops.dbcur.execute("update flows.files SET status=%s where id=%s",(filedb.VALID,fileid))
+            postgresops.dbcon.commit()
+        elif (status >= scheduledb.WAITING_FOR_INPUT and status <= scheduledb.PAUSED ):
+            postgresops.dbcur.execute("update flows.files SET status=%s where id=%s",(filedb.INVALID,fileid))
+            postgresops.dbcon.commit()
 
     # update status of flows
     postgresops.dbcur.execute("select flowdef,curflows.source_name,curflows.source_id,curflows.time_from,curflows.time_to,every(files.status=%s) "+

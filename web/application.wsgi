@@ -39,6 +39,8 @@ def do_index(environ, start_response):
 
 def apply_status_task(task):
     from mod_scheduler import scheduledb
+    if task == None:
+        return
     if ( task.status == scheduledb.STOPPED ):
         task.statusstr = "Stopped"
     elif ( task.status == scheduledb.WAITING_FOR_INPUT ):
@@ -98,16 +100,20 @@ def do_flows(environ,start_response):
     done_flows = postgresops.dbcur.fetchall()
 
     from mod_flow import filedb
-    file_cache = filedb.get_files()
-    for f in file_cache:
+    file_cache_progress = filedb.get_files(where='status=%d'%filedb.INVALID)
+    file_cache_done = filedb.get_files(where='status=%d or status=%d'%(filedb.VALID,filedb.FAIL))
+    for f in file_cache_progress + file_cache_done:
         if f.status == filedb.INVALID or f.status == filedb.FAIL:
             if f.status == filedb.INVALID:
                 f.statusstr = "INVALID"
             else:
                 f.statusstr = "FAIL"
             task = scheduledb.get_task_by_id(f.task_id)
-            apply_status_task(task)
-            f.idstr = str(f.task_id)+' ('+task.statusstr+')'
+            if task != None:
+                apply_status_task(task)
+                f.idstr = str(f.task_id)+' ('+task.statusstr+')'
+            else:
+                f.idstr = str(f.task_id)+' (not found)'
         elif f.status == filedb.VALID:
             f.statusstr = "VALID"
             f.idstr = str(f.task_id)
@@ -115,7 +121,8 @@ def do_flows(environ,start_response):
     return [str(template.render(
                 active_flows=active_flows,
                 done_flows=done_flows,
-                file_cache=file_cache
+                file_cache_progress=file_cache_progress,
+                file_cache_done=file_cache_done
             ))]
 
 def do_admin(environ, start_response):
