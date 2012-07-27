@@ -136,14 +136,6 @@ def read_struct(conf_file, verbose=False):
             if ( wsexpr.match(cline) ):
                 continue;
             
-            incmatch = incexpr.match(cline);
-            if incmatch :
-                if incmatch.group('file')[0] == '/':
-                    lmap.update(read_struct(incmatch.group('file'),verbose));
-                else:
-                    lmap.update(read_struct(conf_file[0:conf_file.rindex('/')]+'/'+incmatch.group('file'),verbose));
-                continue;
-
             if '$(' in cline:
                 idx = cline.find('$(')
                 key = cline[idx+2:cline.find(')',idx)]
@@ -153,6 +145,16 @@ def read_struct(conf_file, verbose=False):
                 try:
                     cline = cline.replace("$("+key+")", map['global'][key])
                 except:pass
+                
+            incmatch = incexpr.match(cline);
+            if incmatch :
+                if incmatch.group('file')[0] == '/':
+                    lmap.update(read_struct(incmatch.group('file'),verbose));
+                elif '/' in conf_file:
+                    lmap.update(read_struct(conf_file[0:conf_file.rindex('/')]+'/'+incmatch.group('file'),verbose));
+                else:
+                    lmap.update(read_struct(incmatch.group('file'),verbose));
+                continue;
                  
             match = expr.match(cline);
             match2 = expr2.match(cline);
@@ -357,6 +359,12 @@ def subs_range(pt):
 		print ex
 		retval.append(pt)
 	return retval
+
+def getdict(dict,key,default=''):
+    if dict.has_key(key):
+        return dict[key]
+    else:
+        return default
 
     
 try:

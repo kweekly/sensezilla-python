@@ -281,7 +281,7 @@ def read_flow_file(fname):
         step.name = tsk
         step.outputs = []
         step.inputs = []
-        step.profile = lmap[tsk+'.profile']
+        step.profile = config.getdict(lmap,tsk+'.profile','cpu_bound')
         if step.profile not in [i[0:i.find(',')] for i in config.map['mod_scheduler']['profiles']]:
             print "ERROR: profile tag %s not found in config files"%step.profile
             sys.exit(1)
