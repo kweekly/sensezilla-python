@@ -74,3 +74,14 @@ def list_ids(source):
      
 def read_source(source):
      return config.read_struct(config.map['global']['source_dir']+'/'+source+".src");
+ 
+def check_arg(argv,arg,nvals=0):
+    try:
+        i = argv.index(arg)
+        vals = argv[i+1:i+nvals+1]
+        argv = argv[0:i] + argv[i+nvals+1:]
+        return True,vals,argv
+    except:pass
+    return False,[],argv
+        
+    

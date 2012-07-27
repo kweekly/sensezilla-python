@@ -55,10 +55,7 @@ elif sys.argv[1] == 'fetch':
             print "PROGRESS STEP 1 OF 1 \"FETCHING URL\" %.2f MB DONE"%(download_done/1e6)
         else:
             print "PROGRESS STEP 1 OF 1 \"FETCHING URL\" %.2f%% DONE"%(100*float(download_done)/download_tot)
-    
-    curl = pycurl.Curl()
-    curl.setopt(curl.NOPROGRESS, 0)
-    curl.setopt(curl.PROGRESSFUNCTION, progress_cb)
+
     
     fromtime = datetime.now() - timedelta(weeks=1)
     totime = datetime.now()
@@ -85,31 +82,60 @@ elif sys.argv[1] == 'fetch':
     if fmap == None:
         print "Couldn't load source description file"
         sys.exit(1);
-    
+            
     devid = sys.argv[3]
     outfile = sys.argv[4]
     
     if ( devid not in fmap['devices'] ):
         print "Warning: %s not found in known devices"%devid
     
-    fout = open(outfile,'w')
-        
+    #set up some defaults
+    def setdef(name,val):
+        if not fmap.has_key(name): fmap[name] = val;
+    
+    setdef('intr','1')
+    setdef('type','TIMESERIES')
+    
+    curl = pycurl.Curl()
+    do_url_fetch = False
+    do_cmd_run = False
+            
     # SET UP URL & HEADERS   
     if (fmap['driver'] == 'SMAP') :
-        url = fmap['url']+'api/data/uuid/%s?starttime=%d&endtime=%d&format=csv&tags=&'%(devid,1000 * utils.date_to_unix(fromtime),1000 * utils.date_to_unix(totime))
+        intr = float(fmap['intr'])
+        url = fmap['url']+'api/data/uuid/%s?starttime=%d&endtime=%d&format=csv&tags=&'%(devid,intr * utils.date_to_unix(fromtime),intr * utils.date_to_unix(totime))
+        do_url_fetch = True
     elif (fmap['driver'] == 'COSM'):
         url = 'http://api.cosm.com/v2/feeds/'+devid+'.csv'
         print "Setting COSM API key: %s"%fmap['apikey']
         curl.setopt(curl.HTTPHEADER, ['X-ApiKey: %s'%fmap['apikey']])
+        do_url_fetch = True
+    elif (fmap['driver'] == 'CSV'):
+        intr = float(fmap['intr'])
+        cmd = "/usr/bin/perl -w %s %d %d %s %s"%(config.map['global']['bin_dir']+'/csv_merge.pl',intr*utils.date_to_unix(fromtime),intr*utils.date_to_unix(totime),outfile,devid)
+        do_cmd_run = True
     else:
         print "No driver for %s"%fmap['driver']
         
-    print "Fetching from %s to %s"%(utils.date_to_str(fromtime),utils.date_to_str(totime))
-    print "URL: %s"%url
-    curl.setopt(curl.URL, url)
-    curl.setopt(curl.WRITEDATA, fout)
-    curl.perform()
-    fout.close()
+    if do_url_fetch:
+        fout = open(outfile,'w')
+        curl.setopt(curl.NOPROGRESS, 0)
+        curl.setopt(curl.PROGRESSFUNCTION, progress_cb)
+        print "Fetching from %s to %s"%(utils.date_to_str(fromtime),utils.date_to_str(totime))
+        print "URL: %s"%url
+        curl.setopt(curl.URL, url)
+        curl.setopt(curl.WRITEDATA, fout)
+        curl.perform()
+        fout.close()
+        
+    if do_cmd_run:
+        import subprocess
+        print "Calling "+cmd
+        ret = subprocess.call(cmd.split(' '))
+        if ( ret != 0 ):
+            print "Error calling csv_merge.pl"
+            os.remove(outfile)
+            sys.exit(1)
     
     # POST-ANALYSIS & PROCESSING
     if (fmap['driver'] == 'SMAP') :

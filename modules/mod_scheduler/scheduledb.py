@@ -69,11 +69,14 @@ def initdb():
         postgresops.dbcon.commit()
 
 def next_task_id():
-    while True:
-        newint = id_rgen.randint(0, 2**31-1)
-        postgresops.dbcur.execute("SELECT id from schedule.tasks where id=%s limit 1",(newint,))
-        if ( postgresops.dbcur.rowcount == None or postgresops.dbcur.rowcount <= 0):
-            break
+    if connected():
+        while True:
+            newint = id_rgen.randint(0, 2**31-1)
+            postgresops.dbcur.execute("SELECT id from schedule.tasks where id=%s limit 1",(newint,))
+            if ( postgresops.dbcur.rowcount == None or postgresops.dbcur.rowcount <= 0):
+                break
+    else:
+        newint = id_rgen.randint(0, 2**31-1)        
     
     return newint
 

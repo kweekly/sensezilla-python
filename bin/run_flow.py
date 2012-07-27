@@ -19,11 +19,13 @@ Usage: run_flow.py [list | run]
     
     list : List available flows to run
     
-    run <flow name> [--from <from time>] [--to <to time>] [--pretend] [--nocache] [<source name> <device identifier>] 
+    run <flow name> [--from <from time>] [--to <to time>] [--pretend] [--nocache] [--local] [<source name> <device identifier>] 
         Run the given flow.  Optional time interval, default is past day.
         Optional source name and device identifier, default is all known devices.
-        Pretend is for testing, doesn't actually add the tasks to the task manager
-        Nocache redoes all of the steps instead of looking for cached steps
+        --pretend is for testing, doesn't actually add the tasks to the task manager
+        --nocache redoes all of the steps instead of looking for cached steps
+        --local makes no connections to the postgres database and manually runs the tasks, dumping the output in the current directory
+            you must specify sourcename and device identifier
 """
 elif (sys.argv[0] == 'list'):
     for file in os.listdir(config.map['global']['flow_dir']):
@@ -38,37 +40,31 @@ elif (sys.argv[0] == 'run'):
     fromtime = datetime.now() - timedelta(weeks=1)
     totime = datetime.now()
     
-    try:
-        i = sys.argv.index('--from')
+    ret,vals,sys.argv = utils.check_arg(sys.argv,'--from',1)
+    if ret:
         try:
-            fromtime = utils.str_to_date(sys.argv[i+1])
+            fromtime = utils.str_to_date(vals[0])
         except ValueError, msg:
             print "Bad from time: "+str(msg)
-        sys.argv = sys.argv[0:i] + sys.argv[i+2:]
-    except ValueError:pass
     
-    try:
-        i = sys.argv.index('--to')
+    ret,vals,sys.argv = utils.check_arg(sys.argv,'--to',1)
+    if ret:
         try:
-            totime = utils.str_to_date(sys.argv[i+1])
+            totime = utils.str_to_date(vals[0])
         except ValueError, msg:
             print "Bad to time: "+str(msg)
-        sys.argv = sys.argv[0:i] + sys.argv[i+2:]
-    except ValueError:pass
+
     
-    pretend = False
-    try:
-        i = sys.argv.index('--pretend')
-        sys.argv = sys.argv[0:i] + sys.argv[i+1:]
-        pretend = True
-    except ValueError:pass
+    pretend,j,sys.argv = utils.check_arg(sys.argv,'--pretend')
+    local,j,sys.argv = utils.check_arg(sys.argv,'--local')
+    nocache,j,sys.argv = utils.check_arg(sys.argv,'--nocache')
     
     flow = flow_processor.read_flow_file(sys.argv[1])
     if ( flow ):
         if ( len(sys.argv) > 2 ):
-            flow.run( fromtime, totime, sys.argv[2], sys.argv[3], pretend = pretend )
+            flow.run( fromtime, totime, sys.argv[2], sys.argv[3], pretend = pretend, local=local,use_cache= not nocache )
         else:
-            flow.run( fromtime, totime, pretend = pretend )
+            flow.run( fromtime, totime, pretend = pretend, use_cache= not nocache, local=local )
     else:
         print "couldn't load the flow definition file"
 else:

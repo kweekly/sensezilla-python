@@ -20,24 +20,28 @@ class FlowDef:
     def __init__(self):
         pass
     
-    def run(self, time_from, time_to, source_name=None, source_id=None, pretend=False, use_cache=True):
+    def run(self, time_from, time_to, source_name=None, source_id=None, pretend=False, use_cache=True, local=False):
+        if source_id == None and local:
+            print "Error: Can only run 'local' test on one stream ( source name & id pair ) at a time"
+            sys.exit(1)
+        
+        
         if source_name == None:
             names = utils.list_sources();
             for name in names:
                 ids = utils.list_ids(name)
                 for id in ids:
-                    self.run(time_from, time_to, name, id, pretend)
+                    self.run(time_from, time_to, name, id, pretend, use_cache, local)
             return
                             
         elif source_id == None:
             ids = utils.list_ids(source_name)
             for id in ids:
-                self.run(time_from, time_to, source_name, id, pretend)
+                self.run(time_from, time_to, source_name, id, pretend, use_cache, local)
             return
         
         smap = utils.read_source(source_name)
-        
-        if use_cache:
+        if not local and use_cache:
             # find any cached files
             import filedb
             filedb.connect()
@@ -55,58 +59,76 @@ class FlowDef:
                         print "Found cached file for output of "+file.src.name
                         break
         
-        # prune any tasks that don't need to be run
-        for step in self.steps[:]:
-            canbepruned = True
-            for f in step.outputs:
-                if not f.cached:
-                    canbepruned = False
-                    break 
-            if canbepruned:
-                print "Pruning step %s because the cache can supply all outputs"%step.name
-                self.steps.remove(step)
-            else:
+            # prune any tasks that don't need to be run
+            for step in self.steps[:]:
+                canbepruned = True
                 for f in step.outputs:
-                    if f.cached:
-                        f.cached = False
-                        print "Cached file %s.O%d will be regenerated b/c not all outputs were cached"%(step.name,f.index)
+                    if not f.cached:
+                        canbepruned = False
+                        break 
+                if canbepruned:
+                    print "Pruning step %s because the cache can supply all outputs"%step.name
+                    self.steps.remove(step)
+                else:
+                    for f in step.outputs:
+                        if f.cached:
+                            f.cached = False
+                            print "Cached file %s.O%d will be regenerated b/c not all outputs were cached"%(step.name,f.index)
         
         # create all the files we'll need
-        if ( self.use_tmp ):
-            dir = '/tmp/sensezilla/flowdata/'+self.name
+        if local:
+            dir = ''
         else:
-            dir = config.map['global']['data_dir']+'/flowdata/'+self.name
+            if ( self.use_tmp ):
+                dir = '/tmp/sensezilla/flowdata/'+self.name
+            else:
+                dir = config.map['global']['data_dir']+'/flowdata/'+self.name
         
-        if not pretend:
-            try:
-                os.makedirs(dir+'/outputs',0755)
-            except:pass
+        
+            if not pretend:
+                try:
+                    os.makedirs(dir+'/outputs',0755)
+                except:pass
             
         
         for file in self.files:
             if not file.cached:
-                if 'OUTPUT' not in [v[0] for v in file.dests]:
+                if local:
+                    file.fname = dir+'testing_%s_%s.O%d'%(self.name,file.src.name,file.index)
                     if not pretend:
                         if file.directory:
-                            file.fname = tempfile.mkdtemp(dir=dir)
+                            try:
+                                os.mkdir(file.fname)
+                            except:pass
                         else:
-                            tfile = tempfile.NamedTemporaryFile('w', dir=dir, delete=False)
-                            file.fname = tfile.name;
-                            tfile.close()
-                    else:
-                        file.fname = os.tempnam(dir)
-                else:
-                    file.fname = dir+'/outputs/%s.O%d_%s_%s_%d_to_%d'%(file.src.name,file.index,source_name,source_id.replace('/','.'),
-                                                                       utils.date_to_unix(time_from),utils.date_to_unix(time_to))
-                    if file.directory:
-                        if not pretend:
-                            os.mkdir(file.fname)
-                    else:
-                        if not pretend: 
                             fout = open(file.fname,'w')
                             fout.close()
+                else:
+                    if 'OUTPUT' not in [v[0] for v in file.dests]:
+                        if not pretend:
+                            if file.directory:
+                                file.fname = tempfile.mkdtemp(dir=dir)
+                            else:
+                                tfile = tempfile.NamedTemporaryFile('w', dir=dir, delete=False)
+                                file.fname = tfile.name;
+                                tfile.close()
+                        else:
+                            file.fname = os.tempnam(dir)
+                    else:
+                        file.fname = dir+'/outputs/%s.O%d_%s_%s_%d_to_%d'%(file.src.name,file.index,source_name,source_id.replace('/','.'),
+                                                                           utils.date_to_unix(time_from),utils.date_to_unix(time_to))
+                        if file.directory:
+                            if not pretend:
+                                os.mkdir(file.fname)
+                        else:
+                            if not pretend: 
+                                fout = open(file.fname,'w')
+                                fout.close()
                     
-                print "Created file : "+file.fname
+                if file.directory:
+                    print "Created directory : "+file.fname
+                else:
+                    print "Created file : "+file.fname
 
 
         # generate dictionary of substitutions
@@ -120,9 +142,6 @@ class FlowDef:
         for key,val in smap.items():
             if ( type(val) is str ):
                 subs.append(('SOURCE.'+key,val))
-
-        if not scheduledb.connected():
-            scheduledb.connect();
             
         for step in self.steps:
             cmd = step.cmd;
@@ -167,46 +186,88 @@ class FlowDef:
                 else:
                     step.task.prerequisites.append( file.deptask )
         
-        for step in self.steps:
-            print "Inserting task %d : %s\n"%(step.task.id, step.task.command)
-            if not pretend:
-                scheduledb.add_task(step.task)
+        if local:
+            for s in self.steps:                
+                s.done = False
                 
-        for mfile in self.files:
-            if not mfile.cached:
-                print "Inserting file %s.%d : %s\n"%(mfile.src.name,mfile.index,mfile.fname)
+            import subprocess
+            
+            def runstep(s):
+                if s.done:
+                    return
+                
+                for tid in s.task.prerequisites:
+                    for s2 in self.steps:
+                        if s2.task.id == tid:
+                            runstep(s2)
+                                
+                
+                # all prereqs ran
+                if not s.done:
+                    print "Executing %s\n"%(s.task.command)
+                    if not pretend:
+                        if 0 != subprocess.call(s.task.command.split(' ')):
+                            raise Exception("Error running step %s"%s2.name)
+                    s.done = True
+            
+            for s in self.steps:
+                runstep(s)
+            
+            print "DONE RUNNING FLOW"                   
+                
+        else:
+            if not scheduledb.connected():
+                scheduledb.connect();
+                
+            for step in self.steps:
+                print "Inserting task %d : %s\n"%(step.task.id, step.task.command)
                 if not pretend:
-                    file = filedb.File()
-                    mfile.file_id = file.id
-                    file.file_name = mfile.fname
-                    file.directory = mfile.directory
-                    file.time_from = time_from
-                    file.time_to = time_to
-                    file.source_name = source_name
-                    file.source_id = source_id
-                    file.steps = mfile.stepchain
-                    file.status = filedb.INVALID
-                    file.task_id = mfile.src.task.id
-                    filedb.add_file(file)
+                    scheduledb.add_task(step.task)
+                    
+            for mfile in self.files:
+                if not mfile.cached:
+                    print "Inserting file %s.%d : %s\n"%(mfile.src.name,mfile.index,mfile.fname)
+                    if not pretend:
+                        file = filedb.File()
+                        mfile.file_id = file.id
+                        file.file_name = mfile.fname
+                        file.directory = mfile.directory
+                        file.time_from = time_from
+                        file.time_to = time_to
+                        file.source_name = source_name
+                        file.source_id = source_id
+                        file.steps = mfile.stepchain
+                        file.status = filedb.INVALID
+                        file.task_id = mfile.src.task.id
+                        filedb.add_file(file)
                      
-        print "Inserting flow %s(%s,%s,%s,%s)"%(self.name,time_from,time_to,source_name,source_id)
-        if not pretend:
-            import flowdb
-            flow = flowdb.Flow()
-            flow.flowdef = self
-            flow.time_from = time_from
-            flow.time_to = time_to
-            flow.source_name = source_name
-            flow.source_id = source_id
-            flow.task_ids = [t.task.id for t in self.steps]
-            flow.file_ids = [f.file_id for f in self.files]
-            flow.status = flowdb.RUNNING
-            flowdb.add_flow(flow)
+            print "Inserting flow %s(%s,%s,%s,%s)"%(self.name,time_from,time_to,source_name,source_id)
+            if not pretend:
+                import flowdb
+                flow = flowdb.Flow()
+                flow.flowdef = self
+                flow.time_from = time_from
+                flow.time_to = time_to
+                flow.source_name = source_name
+                flow.source_id = source_id
+                flow.task_ids = [t.task.id for t in self.steps]
+                flow.file_ids = [f.file_id for f in self.files]
+                flow.status = flowdb.RUNNING
+                flowdb.add_flow(flow)
 
 def read_flow_file(fname):
-    lmap = config.read_struct(config.map['global']['flow_dir']+'/'+fname+".flow");
+    if not fname.endswith('.flow'):
+        fname = config.map['global']['flow_dir']+'/'+fname+".flow"
+        
+    lmap = config.read_struct(fname);
+    if '/' in fname:
+        fname = fname[fname.rfind('/')+1:]
+    
+    if fname.endswith('.flow'):
+        fname = fname[:-5]
+    
     if ( lmap == None ):
-        raise ValueError("Could not load flow:"+fname)
+        raise ValueError("Could not load flow: "+fname)
 
     flow = FlowDef();
     flow.name = fname

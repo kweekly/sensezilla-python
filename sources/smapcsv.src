@@ -1,0 +1,9 @@
+type = TIMESERIES
+driver = CSV
+
+# default units are in "millis" 
+intr = 1000
+invr = 1000
+
+## add devices here
+devices @= "/dev/null"
