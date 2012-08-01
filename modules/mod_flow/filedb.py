@@ -23,7 +23,7 @@ class File:
         self.time_to = datetime.now();
         self.source_name = ''
         self.source_id = ''
-        self.steps = []
+        self.steps = ''
         self.status = INVALID
         self.task_id = 0
         

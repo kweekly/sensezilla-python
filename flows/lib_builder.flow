@@ -1,7 +1,7 @@
 #includes common tasks defs such as 'common-fetcher' and 'common-minpeakfilter'
 include "common.inc"
 
-use_tmp = 1
+use_tmp = 0
 
 source_types @= TIMESERIES
 tasks @= common-fetcher

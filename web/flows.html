@@ -87,7 +87,7 @@
 {% for file in file_cache_done %}
 <tr>
 <td>{{ file.id }}</td>
-<td class=tiny>{{ file.file_name }}</td>
+<td class=tiny>{% if file.statusstr == "VALID" %}<a href="javascript:window.open('showplot?id={{file.id}}','popUpWindow','height=400,width=1000,toolbar=no,menubar=no,status=yes,directories=no,location=no,left=10,top=10')">{{ file.file_name }}</a> {% else %}{{ file.file_name }}{% endif %}</td>
 <td>{{ file.source_name }}</td>
 <td>{{ file.source_id }} </td>
 <td>{{ file.time_from }} </td>
