@@ -301,6 +301,7 @@ def do_showplot(environ,start_response):
     
 def do_locationbuilder(req,environ,start_response): 
     import devicedb
+    import postgresops
     devicedb.connect()
     env = Environment(loader=FileSystemLoader(environ['DOCUMENT_ROOT']));
     if ( req == '/locationbuilder' or req == '/locationbuilder/' ):
@@ -369,6 +370,7 @@ def do_locationbuilder(req,environ,start_response):
                 loc.parent = parentloc.ID
             else:
                 loc.parent = 0
+                
             devicedb.insert_devicemeta(loc);
         else:
             loc = devicedb.get_devicemetas(where="id=%d"%int(d['locid'][0]),limit=1)[0];
@@ -376,13 +378,39 @@ def do_locationbuilder(req,environ,start_response):
         if 'action' in d and d['action'][0] == 'edit':
             post = cgi.FieldStorage(fp=environ['wsgi.input'],environ=environ,keep_blank_values=True);
             loc.value = post['value'].value
-            if 'parent' in post and loc.ID != int(post['parent'].value):
+            if 'noparent' in post:
+                loc.parent = 0
+            elif 'parent' in post and loc.ID != int(post['parent'].value):
                 if loc.parent != int(post['parent'].value):
                     parentloc = devicedb.get_devicemetas(where="id=%d"%int(post['parent'].value),limit=1)[0]
                     
                 loc.parent = int(post['parent'].value)
                  
             devicedb.update_devicemeta(loc)            
+            
+            if '.svg' in post['svgfile'].value :
+                svgmeta = devicedb.get_devicemetas(where="key='SVGFILE' and parent=%d"%loc.ID,limit=1)
+                if ( len(svgmeta) > 0 ):
+                    svgmeta[0].value = post['svgfile'].value
+                    devicedb.update_devicemeta(svgmeta[0])
+                else:
+                    svgmeta = devicedb.new_devicemeta()
+                    svgmeta.key = 'SVGFILE'
+                    svgmeta.value = post['svgfile'].value
+                    svgmeta.parent = loc.ID
+                    devicedb.insert_devicemeta(svgmeta)
+                    
+            svgmeta = devicedb.get_devicemetas(where="key='SVGPOSITION' and parent=%d"%loc.ID,limit=1)
+            posstr = "%.2f,%.2f,%.2f,%.2f"%(float(post['x1'].value),float(post['y1'].value),float(post['x2'].value),float(post['y2'].value))
+            if ( len(svgmeta) > 0 ):
+                svgmeta[0].value = posstr
+                devicedb.update_devicemeta(svgmeta[0])
+            else:
+                svgmeta = devicedb.new_devicemeta()
+                svgmeta.key = 'SVGPOSITION'
+                svgmeta.value = posstr
+                svgmeta.parent = loc.ID
+                devicedb.insert_devicemeta(svgmeta)
                         
         def radd(parent, level, listgen):
             metadata = devicedb.get_devicemetas(where="key='LOCATION' and parent=%d"%parent, orderby="value ASC")
@@ -392,18 +420,90 @@ def do_locationbuilder(req,environ,start_response):
                 else:
                     seltex = ''
                       
-                if level > 0:
-                    listgen += "<option value=%d"%met.ID+" %s>"%seltex+"-"*level+" "+met.value+"</option>\n";
-                else:
-                    listgen += "<option value=%d"%met.ID+" %s>"%seltex+"<b>"+met.value+"</b></option>\n";
-                listgen = radd(met.ID,level+1,listgen);
+                if (met.ID != loc.ID):
+                    if level > 0:
+                        listgen += "<option value=%d"%met.ID+" %s>"%seltex+"-"*level+" "+met.value+"</option>\n";
+                    else:
+                        listgen += "<option value=%d"%met.ID+" %s>"%seltex+"<b>"+met.value+"</b></option>\n";
+                    listgen = radd(met.ID,level+1,listgen);
             return listgen
+        
+        
+        svgmeta = devicedb.get_devicemetas(where="key='SVGFILE' and parent=%d"%loc.ID,limit=1)
+        svgpos = {}
+        svgheight = 300
+        svgwidth = 200
+        if len(svgmeta) > 0:
+            svgfile = svgmeta[0].value
+            svgmeta = devicedb.get_devicemetas(where="key='SVGPOSITION' and parent=%d"%loc.ID,limit=1)
+            if (len(svgmeta) > 0):
+                pts = svgmeta[0].value.split(',')
+                svgpos['x1'] = float(pts[0]);
+                svgpos['y1'] = float(pts[1]);
+                svgpos['x2'] = float(pts[2]);
+                svgpos['y2'] = float(pts[3]);
+            else:
+                svgpos['x1'] = 0;
+                svgpos['y1'] = 0;
+                svgpos['x2'] = 0; 
+                svgpos['y2'] = 0;
+                
+            if '..' in svgfile:
+                svgdata = '<br>\nSECURITY VIOLATION'
+            else:        
+                try:
+                    fin = open(config.map['web']['mapdir']+'/'+svgfile,'r');
+                    buf = ''
+                    state = 0;
+                    while True:
+                        lbuf = fin.read(128);
+                        buf += lbuf
+                        if lbuf == '' or lbuf == None:
+                            state = 9;
+                            break;
+                        if state == 0 and '<svg' in buf:
+                            buf = buf[buf.find('<svg')+4:]
+                            state = 1;
+                        if state == 1:
+                            if 'width="' in buf:
+                                idx = buf.find('width="')+7;
+                                svgwidth = float(buf[idx:buf.find('"',idx)])
+                                
+                            if 'height="' in buf:
+                                idx = buf.find('height="')+8;
+                                svgheight = float(buf[idx:buf.find('"',idx)]) 
+                                
+                            if '>' in buf:
+                                buf = buf[buf.find('>')+1:] 
+                                state = 2;
+                        elif state == 2 and '</svg>' in buf:
+                            buf = buf[:buf.find('</svg>')]
+                            break;
+                    svgdata = buf;
+                    fin.close();
+                except Exception,e:
+                    svgdata = '<br>\nCannot read SVG file: '+str(e)
+                                        
+        else:
+            svgfile = 'Not Specified'
+            svgdata = ''
+            svgpos['x1'] = 0;
+            svgpos['y1'] = 0;
+            svgpos['x2'] = 0;
+            svgpos['y2'] = 0;
+                
             
         listgen = radd(0,0,'')
 
             
               
-        return [str(template.render(loc=loc,listgen=listgen))]
+        return [str(template.render(loc=loc,
+                                    listgen=listgen,
+                                    svgfile=svgfile,
+                                    svgdata=svgdata, 
+                                    svgpos=svgpos,
+                                    svgwidth=svgwidth,
+                                    svgheight=svgheight))]
     else:
         return [str(template.render())]
 

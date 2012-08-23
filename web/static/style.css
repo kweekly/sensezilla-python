@@ -15,7 +15,7 @@ table.status {
 
 table.locationedit {
     border-collapse:collapse;
-    width:50%;
+    width:75%;
 }
 
 table.tasks {
@@ -35,3 +35,10 @@ td.tiny
 {
 	font-size:50%;
 }
+
+.marquee {
+    fill-opacity:0.2;
+    stroke:#000;
+    stroke-dasharray:2,4;
+    vector-effect:non-scaling-stroke; /* not for FF */
+}​

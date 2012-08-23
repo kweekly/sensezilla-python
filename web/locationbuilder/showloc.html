@@ -2,21 +2,69 @@
 <title>Sensezilla Web Interface</title>
 <head>
 <link href="/static/style.css" rel="stylesheet" type="text/css">
+<script src="/static/scripts.js"></script>
 <script>
 window.parent.frames['links'].document.location.reload();
 </script>
 </head>
 <body>
-<form method=POST action="/locationbuilder/showloc?locid={{loc.ID}}&action=edit">
+<form id=locform method=POST action="/locationbuilder/showloc?locid={{loc.ID}}&action=edit">
 <table class=locationedit>
 <tr><td>Name</td><td><input type="text" style="width:100%" name="value" value="{{ loc.value }}"></tr>
 <tr><td>Parent Location</td><td>
 <select size=10 style="width:100%" name="parent" multiple="no">
 {{listgen}}
 </select>
+<input type=checkbox name=noparent value=noparent {{ "checked" if loc.parent==0 else "" }}>No Parent (top-level)</input>
 </td></tr>
+
+<tr><td>Visual Location</td><td>
+SVG File: <input type=text style="width:75%" name="svgfile" value="{{ svgfile }}"><br>
+<center>
+<svg height={{svgheight}} width={{svgwidth}}>
+{{ svgdata }}
+<rect class='viz' id='viz' x={{svgpos.x1}} y={{svgpos.y1}} width={{svgpos.x2-svgpos.x1}} height={{svgpos.y2-svgpos.y1}} style="fill-opacity:0.2;fill:#F00;">
+
+</svg>
+</center><br>
+x1:<input type=text name=x1 value="{{ svgpos.x1 }}">
+y1:<input type=text name=y1 value="{{ svgpos.y1 }}">
+x2:<input type=text name=x2 value="{{ svgpos.x2 }}">
+y2:<input type=text name=y2 value="{{ svgpos.y2 }}">
+</td>
+</tr>
 
 <tr><td colspan=2 style="text-align:right"><input type=submit value=Update><input type=button value=Delete onClick="if(confirm('DELETING WILL RECURSIVELY DELETE ALL SUBLOCATIONS AND METADATA. ARE YOU SURE?')) window.location='/locationbuilder/showloc?locid={{loc.ID}}&action=delete'"></td></tr>
 </table>
 </form>
 </body>
+
+<script>
+function updateBox(x1,y1,x2,y2) {
+    if (x1 < 0)
+        x1 = 0;
+    if (y1 < 0)
+        y1 = 0;
+    if (x2 > {{svgwidth}})
+        x2 = {{svgwidth}};
+    if (y2 > {{svgheight}})
+        y2 = {{svgheight}};
+   
+    var form = document.forms['locform']
+    form.elements['x1'].value = x1;
+    form.elements['y1'].value = y1;
+    form.elements['x2'].value = x2;
+    form.elements['y2'].value = y2;
+    
+    var box = document.getElementById('viz');
+    box.setAttribute('x',x1);
+    box.setAttribute('y',y1);
+    box.setAttribute('width',x2-x1);
+    box.setAttribute('height',y2-y1);
+}
+
+var svg = document.querySelector('svg');
+trackMarquee(svg,updateBox);
+</script>
+
+</html>
