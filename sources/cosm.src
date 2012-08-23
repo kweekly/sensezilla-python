@@ -5,6 +5,3 @@ apikey = YOUR_API_KEY_HERE
 # default units are in "millis" 
 intr = 1000
 invr = 1000
-
-## add devices here ( feed ids + datastream name, i.e. last part of URL )
-devices @= 504/datastreams/energy

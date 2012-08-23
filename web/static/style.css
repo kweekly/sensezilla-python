@@ -13,8 +13,12 @@ table.status {
 	width:50%;
 }
 
-table.tasks
-{
+table.locationedit {
+    border-collapse:collapse;
+    width:50%;
+}
+
+table.tasks {
 	border-collapse:collapse;
 	width:100%;
 	table-layout:fixed;

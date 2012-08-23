@@ -1,0 +1,22 @@
+<html>
+<title>Sensezilla Web Interface</title>
+<head>
+<link href="/static/style.css" rel="stylesheet" type="text/css">
+<script>
+window.parent.frames['links'].document.location.reload();
+</script>
+</head>
+<body>
+<form method=POST action="/locationbuilder/showloc?locid={{loc.ID}}&action=edit">
+<table class=locationedit>
+<tr><td>Name</td><td><input type="text" style="width:100%" name="value" value="{{ loc.value }}"></tr>
+<tr><td>Parent Location</td><td>
+<select size=10 style="width:100%" name="parent" multiple="no">
+{{listgen}}
+</select>
+</td></tr>
+
+<tr><td colspan=2 style="text-align:right"><input type=submit value=Update><input type=button value=Delete onClick="if(confirm('DELETING WILL RECURSIVELY DELETE ALL SUBLOCATIONS AND METADATA. ARE YOU SURE?')) window.location='/locationbuilder/showloc?locid={{loc.ID}}&action=delete'"></td></tr>
+</table>
+</form>
+</body>

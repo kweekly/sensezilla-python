@@ -138,7 +138,7 @@ def count(where=''):
         postgresops.dbcur.execute("SELECT count(*) from schedule.tasks;")
         
     return postgresops.dbcur.fetchone()[0];
-
+ 
 def row_for_task(task):
     return (task.id, task.command, task.profile_tag, task.prerequisites, task.start_after, task.deadline_s, task.start_time, task.end_time, task.cpu_usage_s, task.status,
                  task.progress_steps_done, task.progress_steps_total, task.step_description, task.step_progress_str, task.pid, task.log_file )

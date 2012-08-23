@@ -299,6 +299,113 @@ def do_showplot(environ,start_response):
             start_response('500 ERROR',[('Content-Type','text/plain')])
             return ["Exception "+str(exp)+" occured\n",traceback.format_exc()]
     
+def do_locationbuilder(req,environ,start_response): 
+    import devicedb
+    devicedb.connect()
+    env = Environment(loader=FileSystemLoader(environ['DOCUMENT_ROOT']));
+    if ( req == '/locationbuilder' or req == '/locationbuilder/' ):
+        req = '/locationbuilder/index'
+    
+    if '?' in req:
+        tempname = req[0:req.find('?')]
+    else:
+        tempname = req
+    
+    pagename = tempname[tempname.rfind("/")+1:]
+    
+    try:
+        template = env.get_template(tempname+'.html')
+    except TemplateNotFound:
+        start_response('404 Not Found',[])
+        return [];
+        
+    start_response('200 OK',[('Content-Type','text/html')])
+    
+    d = cgi.parse_qs(environ['QUERY_STRING'])
+    
+    if pagename=='links':   
+        metadata = devicedb.get_devicemetas(where="key='LOCATION' and parent=0", orderby="value ASC")
+        linkgen = ''
+        def radd(parent,level, linkgen):
+           newmetas = devicedb.get_devicemetas(where="key='LOCATION' and parent=%d"%parent, orderby="value ASC")
+           for met in newmetas: 
+               linkgen += "-"*level+" "+"<a target=main href='/locationbuilder/showloc?locid=%d'>"%met.ID+met.value+"</a> ["+\
+                                        "<a target=main href='/locationbuilder/showloc?locid=new&parent=%d'"%met.ID+">+</a>]<br>";
+               linkgen = radd(met.ID,level+1,linkgen);
+           return linkgen  
+             
+               
+        for met in metadata:
+             linkgen += "<h3><a target=main href='/locationbuilder/showloc?locid=%d'>"%met.ID+met.value+"</a> [<a target=main href='/locationbuilder/showloc?locid=new&parent=%d'"%met.ID+">+</a>]</h3>\n"
+             linkgen = radd(met.ID,1,linkgen)
+             
+        linkgen += "<h3><a target=main href='/locationbuilder/showloc?locid=new&parent=0'>New location...</a></h3>"
+        
+        return [str(template.render( linkgen = linkgen ))]
+    elif pagename=='showloc':
+        
+        if 'action' in d and d['action'][0] == 'delete':
+            def rdelete(id):
+                metadata = devicedb.get_devicemetas(where="parent=%d"%id)
+                for met in metadata:
+                    rdelete(met.ID);
+                devicedb.delete_devicemeta(id)
+              
+            rdelete(int(d['locid'][0]))
+            
+            return ['<html><script>window.parent.frames["links"].document.location.reload();\nwindow.location="/locationbuilder/start";</script></html>'];
+                       
+        if 'parent' in d and d['parent'][0] != '0': 
+            parid = int(d['parent'][0]);
+            parentloc = devicedb.get_devicemetas(where="id=%d"%parid,limit=1)[0];
+        else:
+            parentloc = None
+            
+        if d['locid'][0] == 'new':
+            loc = devicedb.new_devicemeta()
+            loc.key = "LOCATION"
+            loc.value = "New Location"
+            if parentloc != None:
+                loc.parent = parentloc.ID
+            else:
+                loc.parent = 0
+            devicedb.insert_devicemeta(loc);
+        else:
+            loc = devicedb.get_devicemetas(where="id=%d"%int(d['locid'][0]),limit=1)[0];
+        
+        if 'action' in d and d['action'][0] == 'edit':
+            post = cgi.FieldStorage(fp=environ['wsgi.input'],environ=environ,keep_blank_values=True);
+            loc.value = post['value'].value
+            if 'parent' in post and loc.ID != int(post['parent'].value):
+                if loc.parent != int(post['parent'].value):
+                    parentloc = devicedb.get_devicemetas(where="id=%d"%int(post['parent'].value),limit=1)[0]
+                    
+                loc.parent = int(post['parent'].value)
+                 
+            devicedb.update_devicemeta(loc)            
+                        
+        def radd(parent, level, listgen):
+            metadata = devicedb.get_devicemetas(where="key='LOCATION' and parent=%d"%parent, orderby="value ASC")
+            for met in metadata:
+                if loc.parent == met.ID:
+                    seltex = 'selected="selected"'
+                else:
+                    seltex = ''
+                      
+                if level > 0:
+                    listgen += "<option value=%d"%met.ID+" %s>"%seltex+"-"*level+" "+met.value+"</option>\n";
+                else:
+                    listgen += "<option value=%d"%met.ID+" %s>"%seltex+"<b>"+met.value+"</b></option>\n";
+                listgen = radd(met.ID,level+1,listgen);
+            return listgen
+            
+        listgen = radd(0,0,'')
+
+            
+              
+        return [str(template.render(loc=loc,listgen=listgen))]
+    else:
+        return [str(template.render())]
 
 def application(environ, start_response):
     global config, mod_exec_IF
@@ -314,22 +421,28 @@ def application(environ, start_response):
     from mod_exec import mod_exec_IF
     
     req = environ['PATH_INFO']
-    
-    if ( req == '/index'):
-        return do_index(environ,start_response)    
-    elif (req == '/admin'):
-        return do_admin(environ,start_response)
-    elif (req == '/tasks'):
-        return do_tasks(environ,start_response)
-    elif (req == '/showlog'):
-        return do_showlog(environ,start_response)
-    elif (req == '/flows'):
-        return do_flows(environ,start_response)
-    elif (req == '/showplot'):
-        return do_showplot(environ,start_response)
-    else:
-        start_response('301 Redirect', [('Location', '/index')]);
-        return []
+    try:
+        if ( req == '/index'):
+            return do_index(environ,start_response)    
+        elif (req == '/admin'):
+            return do_admin(environ,start_response)
+        elif (req == '/tasks'):
+            return do_tasks(environ,start_response)
+        elif (req == '/showlog'):
+            return do_showlog(environ,start_response)
+        elif (req == '/flows'):
+            return do_flows(environ,start_response)
+        elif (req == '/showplot'):
+            return do_showplot(environ,start_response)
+        elif (req.startswith("/locationbuilder")):
+            return do_locationbuilder(req,environ,start_response)
+        else:
+            start_response('301 Redirect', [('Location', '/index')]);
+            return []
+    except Exception, e:
+        import traceback
+        
+        return ["<pre>",traceback.format_exc(),"</pre>"]
     
 
     

@@ -5,7 +5,3 @@ url = http://new.openbms.org/backend/
 # default units are in "millis" 
 intr = 1000
 invr = 1000
-
-## add devices here
-devices @= 8fbe97ef-37ba-5b5b-ba52-d1f643b34045
-devices @+ c82314ff-06bb-5b38-9caf-1c8453edf1f0
