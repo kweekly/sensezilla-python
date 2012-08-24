@@ -31,6 +31,11 @@ table, th, td
 	width:auto;
 }
 
+table.noborder, td.noborder
+{
+    border: 0px;
+}
+
 td.tiny
 {
 	font-size:50%;
@@ -42,3 +47,4 @@ td.tiny
     stroke-dasharray:2,4;
     vector-effect:non-scaling-stroke; /* not for FF */
 }​
+

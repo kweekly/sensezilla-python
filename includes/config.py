@@ -22,6 +22,7 @@ include_dir = root+"/includes"
 mission_dir = root+"/conf"
 flow_dir = root+"/flows"
 source_dir = root+"/sources"
+device_dir = root+"/devices"
 
 #include all directories
 sys.path.insert(0,root);
@@ -29,6 +30,7 @@ sys.path.insert(0,message_dir);
 sys.path.insert(0,module_dir);
 sys.path.insert(0,include_dir);
 sys.path.insert(0,mission_dir);
+
 
 if ('SENSEZILLA_MISSION' not in os.environ) :
 	print "Note: The environment variable SENSEZILLA_MISSION not defined. Using 'server'"
@@ -96,7 +98,7 @@ class IPCMap:
 
 
 map = IPCMap({'global':IPCMap({'root_dir':root,'message_dir':message_dir, 'module_dir':module_dir, 'include_dir':include_dir, 'mission_dir':mission_dir, 
-                               'flow_dir':flow_dir,'source_dir':source_dir,'bin_dir':bin_dir},modname='global')});
+                               'flow_dir':flow_dir,'source_dir':source_dir,'bin_dir':bin_dir,'device_dir':device_dir},modname='global')});
 
 
 def check_key( mod_name, key):

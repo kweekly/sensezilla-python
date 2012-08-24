@@ -1,0 +1,49 @@
+ 
+<html>
+<title>Sensezilla Web Interface</title>
+<head>
+<link href="/static/style.css" rel="stylesheet" type="text/css">
+
+<script>
+window.parent.frames['links'].document.location.reload();
+</script>
+</head>
+
+<body>
+<form id=devform method=POST action="/locationbuilder/showdev?id={{dev.ID}}&action=edit">
+<table class=locationedit>
+<col width=20%>
+<col width=80%>
+<tr><td>ID String</td><td><input type="text" style="width:100%" name="IDstr" value="{{dev.IDstr}}"></td></tr>
+<tr><td>ID String Format</td><td>{{devdef.ID_string_format}}</td></tr>
+<tr><td>Device Type<br><small>(requires update after changing)</small></td><td>
+<select name=devdef>
+{% for devfnm in devdeflistfiles %}
+<option value={{devfnm}} {{ "selected" if devfnm==dev.device_type else "" }}>{{devdeflist[loop.index0]}}</option>
+{% endfor %}
+</select>
+
+</td></tr>
+
+<tr><td>Device Image</td><td><center>{{svgdata}}</center></td></tr>
+<tr><td>Source<br><small>(requires update after changing)</small></td><td>
+<select name=source>
+{% for source in sourcelist %}
+<option value={{source}} {{ "selected" if source==devdef.source_name else ""}}>{{source}}</option>
+{% endfor %}
+</select>
+</td></tr>
+<tr><td>Feeds</td><td>
+Format: {{ sourcedef.ID_string_format }}
+<table class=noborder width=100%>
+{% for feed in devdef.feeds %}
+<tr><td class=noborder>{{feed}}</td><td class=noborder><input type="text" style="width:500" name=feed{{loop.index0}} value="{{dev.source_ids[loop.index0]}}"></td></tr>
+{% endfor %}
+</table>
+</td></tr>
+
+<tr><td colspan=2 style="text-align:right"><input type=submit value=Update><input type=button value=Delete onClick="if(confirm('DELETE DEVICE??!?')) window.location='/locationbuilder/showdev?id={{dev.ID}}&action=delete'"></td></tr>
+</table>
+</form>
+</body>
+</html>

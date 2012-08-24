@@ -65,15 +65,19 @@ def list_sources():
             ret.append(name)
     return ret
 
-def list_ids(source):
-     fmap = config.read_struct(config.map['global']['source_dir']+'/'+source+".src");
-     if fmap.has_key('devices'):
-         return fmap['devices']
-     else:
-         return []
-     
+def list_devicedefs():
+    ret = []
+    for file in os.listdir(config.map['global']['device_dir']):
+        if ( file.endswith('.dev') ):
+            name = file[file.find('/')+1:-4]
+            ret.append(name)
+    return ret
+
 def read_source(source):
      return config.read_struct(config.map['global']['source_dir']+'/'+source+".src");
+ 
+def read_device(device):
+     return config.read_struct(config.map['global']['device_dir']+'/'+device+".dev");
  
 def check_arg(argv,arg,nvals=0):
     try:

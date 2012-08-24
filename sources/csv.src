@@ -5,5 +5,5 @@ driver = CSV
 intr = 1
 invr = 1
 
-## add devices here
-devices @= "/dev/null"
+
+ID_string_format = "CSV file pathname"

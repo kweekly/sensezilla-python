@@ -5,3 +5,5 @@ url = http://new.openbms.org/backend/
 # default units are in "millis" 
 intr = 1000
 invr = 1000
+
+ID_string_format = "UUID of SMAP stream"

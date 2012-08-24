@@ -7,3 +7,4 @@ intr = m
 invr = m
 
 ## add devices here
+ID_string_format = "UUID of SMAP stream"

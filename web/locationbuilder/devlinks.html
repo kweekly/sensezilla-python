@@ -1,0 +1,40 @@
+ <html>
+<title>Sensezilla Web Interface</title>
+<head>
+<link href="/static/style.css" rel="stylesheet" type="text/css">
+<style>
+a {
+    text-decoration:none;
+}
+   
+ul.devlist {
+    list-style:none;
+    margin-top:0px;
+    padding-top:0px;
+}
+
+h3 {
+    margin-bottom:0px;
+    padding-bottom:0px;
+}
+</style
+</head>
+<body>
+<form method=GET action=/locationbuilder/devlinks>
+Categorize by: 
+<select name="categorize"> 
+<option value=type {{ "selected" if categorize=="type" else "" }}>Type</option>
+<option value=location {{ "selected" if categorize=="location" else "" }}>Location</option>
+</select>
+<input type=submit value=Go>
+</form>
+{% for cat,arr in devices.items() %}
+<h3>{{ cat }}</h3>
+<ul class=devlist>
+{% for dev in arr %}
+<li><a href="/locationbuilder/showdev?id={{dev.ID}}" target="main">{{ dev.IDstr }}</a></li>
+{% endfor %}
+</ul>
+{% endfor %}
+</body>
+</html>

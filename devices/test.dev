@@ -1,0 +1,6 @@
+name = "Test Device"
+ID_string_format = "anything you want (this is a test device)"
+
+feeds @= "Plug 1"
+feeds @+ "Plug 2"
+feeds @+ "Temperature"

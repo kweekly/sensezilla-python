@@ -79,7 +79,22 @@ def new_devicemeta():
     dev.ID = newint
     return dev
 
+def find_devices_under(meta):
+    devidlist = find_device_ids_under(meta)
+    postgresops.dbcur.execute("SELECT * from devices.physical where id=any(%s)",[devidlist,])
+    retval = []
+    rows = postgresops.dbcur.fetchall()
+    for row in rows:
+        retval.append(device_for_row(row))
+        
+    return retval
 
+def find_device_ids_under(meta):
+    devidlist = meta.devices
+    metas = get_devicemetas(where="parent=%d"%meta.ID)
+    for m in metas:
+        devidlist += find_device_ids_under(m)
+    return devidlist
 
 def get_devices(where='',orderby='',limit=None):
     extra = ''
@@ -103,7 +118,7 @@ def get_devices(where='',orderby='',limit=None):
 
 def insert_device(dev):
     postgresops.dbcur.execute("INSERT INTO devices.physical"+ 
-                "(id,idstr,device_typ,source_name,source_ids) "+
+                "(id,idstr,device_type,source_name,source_ids) "+
                 "VALUES ("+"%s,"*4+"%s)",row_for_device(dev))
     postgresops.dbcon.commit()
     
