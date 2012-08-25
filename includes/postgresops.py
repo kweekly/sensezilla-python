@@ -22,9 +22,9 @@ def connected():
 
 evil_chars = ['\x00','\n','\r','\\',"'",'"','\x1a',';']
 
-def check_evil(str):
+def check_evil(str,extra_evil=[]):
     for ch in str:
-        if ch in evil_chars:
+        if ch in evil_chars+extra_evil:
             raise Exception("SECURITY VIOLATION string \"%s\" contains possible SQL INJECTION"%(str))
 
 def check_and_create_schema(schemaname):

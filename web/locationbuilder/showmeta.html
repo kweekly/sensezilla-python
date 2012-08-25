@@ -1,0 +1,54 @@
+ 
+<html>
+<title>Sensezilla Web Interface</title>
+<head>
+<link href="/static/style.css" rel="stylesheet" type="text/css">
+<script>
+window.parent.frames['links'].document.location.reload();
+</script>
+</head>
+<body>
+<form id=metaform method=POST action="/locationbuilder/showmeta?type={{key}}&id={{meta.ID}}&action=edit">
+<table class=locationedit>
+<tr><td>Name</td><td><input type="text" style="width:100%" name="value" value="{{ meta.value }}"></tr>
+<tr><td>Parent {{key.lower()}}</td><td>
+<select size=10 style="width:100%" name="parent">
+{{listgen}}
+</select>
+<input type=checkbox name=noparent value=noparent {{ "checked" if meta.parent==0 else "" }}>No Parent (top-level)</input>
+</td></tr>
+
+<tr><td colspan=2 style="text-align:right"><input type=submit value=Update><input type=button value=Delete onClick="if(confirm('DELETING WILL RECURSIVELY DELETE ALL CHILDREN METADATA. ARE YOU SURE?')) window.location='/locationbuilder/showmeta?type={{key}}&id={{meta.ID}}&action=delete'"></td></tr>
+</table>
+</form>
+</body>
+
+<script>
+function updateBox(x1,y1,x2,y2) {
+    if (x1 < 0)
+        x1 = 0;
+    if (y1 < 0)
+        y1 = 0;
+    if (x2 > {{svgwidth}})
+        x2 = {{svgwidth}};
+    if (y2 > {{svgheight}})
+        y2 = {{svgheight}};
+   
+    var form = document.forms['locform']
+    form.elements['x1'].value = x1;
+    form.elements['y1'].value = y1;
+    form.elements['x2'].value = x2;
+    form.elements['y2'].value = y2;
+    
+    var box = document.getElementById('viz');
+    box.setAttribute('x',x1);
+    box.setAttribute('y',y1);
+    box.setAttribute('width',x2-x1);
+    box.setAttribute('height',y2-y1);
+}
+
+var svg = document.querySelector('svg');
+trackMarquee(svg,updateBox);
+</script>
+
+</html>

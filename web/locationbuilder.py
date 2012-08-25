@@ -6,6 +6,27 @@ import cgi
 
 from jinja2 import * 
 
+def gen_loc_option_list(parent, level, listgen, idstop, idselect):
+    return gen_option_list(parent, level, listgen, idstop, idselect,"LOCATION")
+
+def gen_option_list(parent, level, listgen, idstop, idselect,key):
+    import devicedb
+    metadata = devicedb.get_devicemetas(where="key='%s' and parent=%d"%(key,parent), orderby="value ASC")
+    for met in metadata:
+        if idselect == met.ID:
+            seltex = 'selected="selected"'
+        else:
+            seltex = ''
+              
+        if (met.ID != idstop):
+            if level > 0:
+                listgen += "<option value=%d"%met.ID+" %s>"%seltex+"-"*level+" "+met.value+"</option>\n";
+            else:
+                listgen += "<option value=%d"%met.ID+" %s>"%seltex+"<b>"+met.value+"</b></option>\n";
+            listgen = gen_option_list(met.ID,level+1,listgen,idstop,idselect,key);
+    return listgen
+        
+
 def do_locationbuilder(req,environ,start_response):
     import config 
     import devicedb
@@ -32,23 +53,27 @@ def do_locationbuilder(req,environ,start_response):
     
     d = cgi.parse_qs(environ['QUERY_STRING'])
     
-    if pagename=='loclinks':   
-        metadata = devicedb.get_devicemetas(where="key='LOCATION' and parent=0", orderby="value ASC")
+    if pagename=='metalinks':   
+        key = d['type'][0].upper()
+        main = d['main'][0].lower()
+        postgresops.check_evil(key)
+        postgresops.check_evil(main, ['/'])
+        metadata = devicedb.get_devicemetas(where="key='%s' and parent=0"%key, orderby="value ASC")
         linkgen = ''
         def radd(parent,level, linkgen):
-           newmetas = devicedb.get_devicemetas(where="key='LOCATION' and parent=%d"%parent, orderby="value ASC")
+           newmetas = devicedb.get_devicemetas(where="key='%s' and parent=%d"%(key,parent), orderby="value ASC")
            for met in newmetas: 
-               linkgen += "-"*level+" "+"<a target=main href='/locationbuilder/showloc?locid=%d'>"%met.ID+met.value+"</a> ["+\
-                                        "<a target=main href='/locationbuilder/showloc?locid=new&parent=%d'"%met.ID+">+</a>]<br>";
+               linkgen += "-"*level+" "+"<a target=main href='/locationbuilder/%s?id=%d&type=%s'>"%(main,met.ID,key)+met.value+"</a> ["+\
+                                        "<a target=main href='/locationbuilder/%s?id=new&parent=%d&type=%s'"%(main,met.ID,key)+">+</a>]<br>";
                linkgen = radd(met.ID,level+1,linkgen);
            return linkgen  
              
                
         for met in metadata:
-             linkgen += "<h3><a target=main href='/locationbuilder/showloc?locid=%d'>"%met.ID+met.value+"</a> [<a target=main href='/locationbuilder/showloc?locid=new&parent=%d'"%met.ID+">+</a>]</h3>\n"
+             linkgen += "<h3><a target=main href='/locationbuilder/%s?id=%d&type=%s'>"%(main,met.ID,key)+met.value+"</a> [<a target=main href='/locationbuilder/%s?id=new&parent=%d&type=%s'"%(main,met.ID,key)+">+</a>]</h3>\n"
              linkgen = radd(met.ID,1,linkgen)
              
-        linkgen += "<h3><a target=main href='/locationbuilder/showloc?locid=new&parent=0'>New location...</a></h3>"
+        linkgen += "<h3><a target=main href='/locationbuilder/%s?id=new&parent=0&type=%s'>New %s...</a></h3>"%(main,key,key.lower())
         
         return [str(template.render( linkgen = linkgen ))]
     
@@ -73,6 +98,60 @@ def do_locationbuilder(req,environ,start_response):
     
         return [str(template.render( categorize = categorize, devices = devices ))]
     
+    elif pagename=='showmeta':
+        if 'action' in d and d['action'][0] == 'delete':
+            def rdelete(id):
+                metadata = devicedb.get_devicemetas(where="parent=%d"%id)
+                for met in metadata:
+                    rdelete(met.ID);
+                devicedb.delete_devicemeta(id)
+              
+            rdelete(int(d['id'][0]))
+            
+            return ['<html><script>window.parent.frames["links"].document.location.reload();\nwindow.location="/locationbuilder/start";</script></html>'];
+
+        key = d['type'][0].upper()
+        postgresops.check_evil(key)
+
+        if 'parent' in d and d['parent'][0] != '0': 
+            parid = int(d['parent'][0]);
+            parentmeta = devicedb.get_devicemetas(where="id=%d"%parid,limit=1)[0];
+        else:
+            parentmeta = None 
+                    
+        if d['id'][0] == 'new':
+            meta = devicedb.new_devicemeta()
+            meta.key = key;
+            meta.value= "New "+key.lower()
+            if parentmeta != None:
+                meta.parent = parentmeta.ID
+            else:
+                meta.parent = 0
+                
+            devicedb.insert_devicemeta(meta)
+        else:
+            meta = devicedb.get_devicemetas(where="key='%s' and id=%d"%(key,int(d['id'][0])))[0]
+
+        if 'action' in d and d['action'][0] == 'edit':
+            post = cgi.FieldStorage(fp=environ['wsgi.input'],environ=environ,keep_blank_values=True);
+            meta.value = post['value'].value
+            if 'noparent' in post:
+                meta.parent = 0
+            elif 'parent' in post and meta.ID != int(post['parent'].value):
+                if meta.parent != int(post['parent'].value):
+                    parentmeta = devicedb.get_devicemetas(where="id=%d"%int(post['parent'].value),limit=1)[0]
+                    
+                meta.parent = int(post['parent'].value)
+                 
+            devicedb.update_devicemeta(meta)
+            
+        listgen = gen_option_list(0,0,'',meta.ID,meta.parent,key)
+                    
+        return [str(template.render(
+                                    key=key,
+                                    listgen=listgen,
+                                    meta = meta 
+            ))]
     elif pagename=='showloc':
         if 'action' in d and d['action'][0] == 'delete':
             def rdelete(id):
@@ -81,7 +160,7 @@ def do_locationbuilder(req,environ,start_response):
                     rdelete(met.ID);
                 devicedb.delete_devicemeta(id)
               
-            rdelete(int(d['locid'][0]))
+            rdelete(int(d['id'][0]))
             
             return ['<html><script>window.parent.frames["links"].document.location.reload();\nwindow.location="/locationbuilder/start";</script></html>'];
                        
@@ -91,7 +170,7 @@ def do_locationbuilder(req,environ,start_response):
         else:
             parentloc = None
             
-        if d['locid'][0] == 'new':
+        if d['id'][0] == 'new':
             loc = devicedb.new_devicemeta()
             loc.key = "LOCATION"
             loc.value = "New Location"
@@ -102,7 +181,7 @@ def do_locationbuilder(req,environ,start_response):
                 
             devicedb.insert_devicemeta(loc);
         else:
-            loc = devicedb.get_devicemetas(where="id=%d"%int(d['locid'][0]),limit=1)[0];
+            loc = devicedb.get_devicemetas(where="id=%d"%int(d['id'][0]),limit=1)[0];
         
         if 'action' in d and d['action'][0] == 'edit':
             post = cgi.FieldStorage(fp=environ['wsgi.input'],environ=environ,keep_blank_values=True);
@@ -115,7 +194,7 @@ def do_locationbuilder(req,environ,start_response):
                     
                 loc.parent = int(post['parent'].value)
                  
-            devicedb.update_devicemeta(loc)            
+            devicedb.update_devicemeta(loc)
             
             if '.svg' in post['svgfile'].value :
                 svgmeta = devicedb.get_devicemetas(where="key='SVGFILE' and parent=%d"%loc.ID,limit=1)
@@ -140,24 +219,7 @@ def do_locationbuilder(req,environ,start_response):
                 svgmeta.value = posstr
                 svgmeta.parent = loc.ID
                 devicedb.insert_devicemeta(svgmeta)
-                        
-        def radd(parent, level, listgen):
-            metadata = devicedb.get_devicemetas(where="key='LOCATION' and parent=%d"%parent, orderby="value ASC")
-            for met in metadata:
-                if loc.parent == met.ID:
-                    seltex = 'selected="selected"'
-                else:
-                    seltex = ''
-                      
-                if (met.ID != loc.ID):
-                    if level > 0:
-                        listgen += "<option value=%d"%met.ID+" %s>"%seltex+"-"*level+" "+met.value+"</option>\n";
-                    else:
-                        listgen += "<option value=%d"%met.ID+" %s>"%seltex+"<b>"+met.value+"</b></option>\n";
-                    listgen = radd(met.ID,level+1,listgen);
-            return listgen
-        
-        
+                                
         svgmeta = devicedb.get_devicemetas(where="key='SVGFILE' and parent=%d"%loc.ID,limit=1)
         svgpos = {}
         svgheight = 300
@@ -221,7 +283,7 @@ def do_locationbuilder(req,environ,start_response):
             svgpos['y2'] = 0;
                 
             
-        listgen = radd(0,0,'')
+        listgen = gen_loc_option_list(0,0,'',loc.ID,loc.parent)
 
             
               
@@ -234,36 +296,145 @@ def do_locationbuilder(req,environ,start_response):
                                     svgheight=svgheight))]
     elif pagename=='showdev':
         import utils
+        
         if d['id'][0] == 'new':
             pass
         else:
             dev = devicedb.get_devices(where="id=%d"%(int(d['id'][0])),limit=1)[0]
+
+        devdeflistfiles = utils.list_devicedefs()
+        devdeflist=[]
+        for devdeffile in devdeflistfiles:
+            struc = utils.read_device(devdeffile)
+            if ( devdeffile == dev.device_type ):
+                devdef = struc
+            devdeflist.append(struc['name']);
+                    
+        if 'action' in d and d['action'][0] == 'edit':
+            post = cgi.FieldStorage(fp=environ['wsgi.input'],environ=environ,keep_blank_values=True);
+            dev.IDstr = post['IDstr'].value
+            dev.source_ids = []
+            for i in range(len(devdef['feeds'])):
+                dev.source_ids.append(post['feed%d'%i].value)
             
-            devdeflistfiles = utils.list_devicedefs()
-            devdeflist=[]
-            for devdeffile in devdeflistfiles:
-                struc = utils.read_device(devdeffile)
-                if ( devdeffile == dev.device_type ):
-                    devdef = struc
-                devdeflist.append(struc['name']);
-            
-            if not devdef.has_key('svgfile'):
-                devdef['svgfile'] = config.map['global']['device_dir']+'/unknown.svg';
+            if (post['devdef'].value != dev.device_type):
+                dev.device_type = post['devdef'].value
+                devdef = utils.read_device(dev.device_type)
                 
-            fin = open(devdef['svgfile'],'r')
-            svgdata = fin.read()
-            fin.close()
+            dev.source_name = post['source'].value
             
-            sourcelist = utils.list_sources()
-            sourcedef = utils.read_source(dev.source_name);
+            curlocs = devicedb.get_devicemetas(where="key='LOCATION' and %d=any(devices)"%dev.ID)
             
+            if ('location' not in post):
+                post['noloc'] = 'noloc'
             
+            if ( len(curlocs) > 1 or (len(curlocs) == 1 and ('noloc' in post or curlocs[0].ID != post['location'].value))):
+                for loc in curlocs:
+                    loc.devices.remove(dev.ID)
+                    devicedb.update_devicemeta(loc);
+                
+            if ( 'noloc' not in post ):
+                loc = devicedb.get_devicemetas(where="id=%d"%(int(post['location'].value)),limit=1)
+                loc[0].devices.append(dev.ID)
+                devicedb.update_devicemeta(loc[0])
+                
+            for i in range(len(devdef['feeds'])):
+                if ( 'plugload%d'%i in post ):
+                    plugl = devicedb.get_devicemetas(where="key='PLUGLOAD%d' and %d=any(devices)"%(i,dev.ID),limit=1)
+                    if len(plugl)==0 and post['plugload%d'%i].value != '0':
+                        plugl = devicedb.new_devicemeta()
+                        plugl.key = "PLUGLOAD%d"%i
+                        plugl.value = ''
+                        plugl.devices = [dev.ID]
+                        plugl.parent = int(post['plugload%d'%i].value)
+                        devicedb.insert_devicemeta(plugl)
+                    elif len(plugl)==1 and plugl[0].parent != int(post['plugload%d'%i].value):
+                        if post['plugload%d'%i].value == '0':
+                            devicedb.delete_devicemeta(plugl[0].ID)
+                        else:
+                            plugl[0].parent = int(post['plugload%d'%i].value)
+                            devicedb.update_devicemeta(plugl[0])
+          
+            curuser = devicedb.get_devicemetas(where="key='USER' and %d=any(devices)"%(dev.ID))
+            found = False
+            for c in curuser:
+                if ( c.ID != int(post['user'].value) ):
+                    c.devices.remove(dev.ID)
+                    devicedb.update_devicemeta(c)
+                else:
+                    found = True
+            
+            if not found and post['user'].value != '0':
+                curuser = devicedb.get_devicemetas(where="key='USER' and id=%d"%int(post['user'].value))
+                curuser[0].devices.append(dev.ID)
+                devicedb.update_devicemeta(curuser[0])
+            
+            devicedb.update_device(dev)
+
+        
+        if not devdef.has_key('svgfile'):
+            devdef['svgfile'] = config.map['global']['device_dir']+'/unknown.svg';
+            
+        fin = open(devdef['svgfile'],'r')
+        svgdata = fin.read()
+        fin.close()
+                
+        sourcelist = utils.list_sources()
+        sourcedef = utils.read_source(dev.source_name);
+        
+        curloc = devicedb.get_devicemetas(where="key='LOCATION' and %d=any(devices)"%dev.ID,limit=1)
+        if len(curloc) == 0:
+            locoptions = gen_loc_option_list(0, 0, '', 0, 0)
+            noloc = True
+        else:
+            locoptions = gen_loc_option_list(0,0,'',0,curloc[0].ID)
+            noloc = False
+        
+        
+        loadsellists = [];
+        curloadsels = []
+        for i in range(len(devdef['feeds'])):
+            plugs = devicedb.get_devicemetas(where="key='PLUGLOAD%d' and %d=any(devices)"%(i,dev.ID),limit=1)
+            if len(plugs)==1:
+                curloadsels.append(plugs[0].parent);
+            else:
+                curloadsels.append(0)
+            
+            loadsellists.append(gen_option_list(0,0,'',0,curloadsels[-1],'PLUGLOAD'))
+            
+        userlist = []
+        def rgenusers(id,userlist):
+            metas = devicedb.get_devicemetas(where="key='USER' and parent=%d"%id,orderby='value ASC')
+            if ( len(metas) == 0 ):
+                u = devicedb.get_devicemetas(where="id=%d"%id)
+                userlist.append(u[0])
+                if dev.ID in u[0].devices:
+                    return u[0].ID
+                return 0
+            else:
+                retval = 0
+                for u in metas:
+                    id = rgenusers(u.ID,userlist)
+                    if id != 0:
+                        retval = id
+                return retval
+        
+        curuser = rgenusers(0,userlist)
+            
+        sourcedef['ID_string_format'] = cgi.escape( sourcedef['ID_string_format'] )
+        devdef['ID_string_format'] = cgi.escape( devdef['ID_string_format'] )
         return [str(template.render(dev=dev,
                                     devdef=devdef,
                                     devdeflist=devdeflist,
                                     devdeflistfiles=devdeflistfiles,
                                     sourcelist=sourcelist,
                                     sourcedef=sourcedef,
+                                    locoptions=locoptions,
+                                    noloc=noloc,
+                                    loadsellists=loadsellists,
+                                    curloadsels=curloadsels,
+                                    userlist=userlist,
+                                    curuser=curuser,
                                     svgdata=svgdata))]
     
     else:

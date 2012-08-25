@@ -12,7 +12,7 @@ window.parent.frames['links'].document.location.reload();
 <table class=locationedit>
 <tr><td>Name</td><td><input type="text" style="width:100%" name="value" value="{{ loc.value }}"></tr>
 <tr><td>Parent Location</td><td>
-<select size=10 style="width:100%" name="parent" multiple="no">
+<select size=10 style="width:100%" name="parent">
 {{listgen}}
 </select>
 <input type=checkbox name=noparent value=noparent {{ "checked" if loc.parent==0 else "" }}>No Parent (top-level)</input>

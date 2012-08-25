@@ -3,11 +3,11 @@ import sys
 import time
 import psutil
 import cgi 
-
+        
 from jinja2 import * 
 
 sys.path.append(os.path.dirname(__file__))         
-  
+     
 def application(environ, start_response):
     global config, mod_exec_IF
     
@@ -21,7 +21,7 @@ def application(environ, start_response):
     import config
     from mod_exec import mod_exec_IF
 
-    req = environ['PATH_INFO']
+    req = environ['PATH_INFO']         
     try:
         if ( req == '/index'):
             from index import do_index 
@@ -32,7 +32,7 @@ def application(environ, start_response):
         elif (req == '/tasks'):
             from tasks import do_tasks
             return do_tasks(environ,start_response)
-        elif (req == '/showlog'):
+        elif (req == '/showlog'): 
             from showlog import do_showlog
             return do_showlog(environ,start_response)
         elif (req == '/flows'):

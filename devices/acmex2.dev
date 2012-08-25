@@ -1,0 +1,8 @@
+name = "AcME Power Meter version 2"
+ID_string_format = "IPv6 Address"
+
+svgfile = "$(device_dir)/acmex2.svg"
+
+feeds @= "Apparent Power"
+feeds @+ "True Energy"
+feeds @+ "True Power"
