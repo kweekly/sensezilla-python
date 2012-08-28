@@ -354,6 +354,21 @@ def do_locationbuilder(req,environ,start_response):
                         else:
                             plugl[0].parent = int(post['plugload%d'%i].value)
                             devicedb.update_devicemeta(plugl[0])
+                if ('datatype%d'%i in post):
+                    datat = devicedb.get_devicemetas(where="key='DATATYPE%d' and %d=any(devices)"%(i,dev.ID),limit=1)
+                    if len(datat)==0 and post['datatype%d'%i].value != '0':
+                        datat = devicedb.new_devicemeta()
+                        datat.key = "DATATYPE%d"%i
+                        datat.value = ''
+                        datat.devices = [dev.ID]
+                        datat.parent = int(post['datatype%d'%i].value)
+                        devicedb.insert_devicemeta(datat)
+                    elif len(datat)==1 and datat[0].parent != int(post['datatype%d'%i].value):
+                        if post['datatype%d'%i].value == '0':
+                            devicedb.delete_devicemeta(datat[0].ID)
+                        else:
+                            datat[0].parent = int(post['datatype%d'%i].value)
+                            devicedb.update_devicemeta(datat[0])
           
             curuser = devicedb.get_devicemetas(where="key='USER' and %d=any(devices)"%(dev.ID))
             found = False
@@ -392,6 +407,8 @@ def do_locationbuilder(req,environ,start_response):
         
         
         loadsellists = [];
+        datatypelists = []
+        curtypesels = []
         curloadsels = []
         for i in range(len(devdef['feeds'])):
             plugs = devicedb.get_devicemetas(where="key='PLUGLOAD%d' and %d=any(devices)"%(i,dev.ID),limit=1)
@@ -399,8 +416,15 @@ def do_locationbuilder(req,environ,start_response):
                 curloadsels.append(plugs[0].parent);
             else:
                 curloadsels.append(0)
+                
+            types = devicedb.get_devicemetas(where="key='DATATYPE%d' and %d=any(devices)"%(i,dev.ID),limit=1)
+            if len(types)==1:
+                curtypesels.append(types[0].parent);
+            else:
+                curtypesels.append(0)
             
             loadsellists.append(gen_option_list(0,0,'',0,curloadsels[-1],'PLUGLOAD'))
+            datatypelists.append(gen_option_list(0,0,'',0,curtypesels[-1],'DATATYPE'))
             
         userlist = []
         def rgenusers(id,userlist):
@@ -433,6 +457,8 @@ def do_locationbuilder(req,environ,start_response):
                                     noloc=noloc,
                                     loadsellists=loadsellists,
                                     curloadsels=curloadsels,
+                                    datatypelists=datatypelists,
+                                    curtypesels=curtypesels,
                                     userlist=userlist,
                                     curuser=curuser,
                                     svgdata=svgdata))]
