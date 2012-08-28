@@ -43,15 +43,9 @@ window.parent.frames['links'].document.location.reload();
 </td></tr>
 <tr><td>Feeds</td><td>
 <table class=noborder width=100%>
-<tr><th class=noborder>Physical Name</th><th class=noborder>Data Type</th><th>Load</th><th>{{ sourcedef.ID_string_format }}</th>
+<tr><th class=noborder>Physical Name</th><th>Load</th><th>{{ sourcedef.ID_string_format }}</th>
 {% for feed in devdef.feeds %}
 <tr><td class=noborder>{{feed}}</td>
-<td class=noborder>
-<select name=datatype{{loop.index0}}>
-<option value=0 {{"selected" if curtypesels[loop.index0]==0 else""}}>Undefined</option>
-{{datatypelists[loop.index0]}}
-</select>
-</td>
 <td class=noborder>
 <select name=plugload{{loop.index0}}>
 <option value=0 {{"selected" if curloadsels[loop.index0]==0 else ""}}>Undefined</option>
