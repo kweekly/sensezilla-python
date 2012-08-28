@@ -1,5 +1,5 @@
 name = "AcME Power Meter version 2"
-ID_string_format = "IPv6 Address"
+ID_string_format = "IEEE802.15.4 64-bit MAC Address"
 
 svgfile = "$(device_dir)/acmex2.svg"
 

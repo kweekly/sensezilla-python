@@ -88,7 +88,7 @@ def do_locationbuilder(req,environ,start_response):
             devs = devicedb.get_devices(orderby='idstr ASC')
             for dev in devs:
                 if ( devices.has_key(dev.device_type )):
-                    devices[dev.device_type].apppend(dev);
+                    devices[dev.device_type].append(dev);
                 else:
                     devices[dev.device_type] = [dev]
         elif categorize == 'location':
@@ -296,9 +296,25 @@ def do_locationbuilder(req,environ,start_response):
                                     svgheight=svgheight))]
     elif pagename=='showdev':
         import utils
+
+        if 'action' in d and d['action'][0] == 'delete':
+            devid = int(d['id'][0])
+            metas = devicedb.get_devicemetas(where='%d=any(devices)'%devid)
+            for met in metas:
+                met.devices.remove(devid)
+                devicedb.update_devicemeta(met)
+            
+            devicedb.delete_device(devid)
+            
+            return ['<html><script>window.parent.frames["links"].document.location.reload();\nwindow.location="/locationbuilder/start";</script></html>'];
+         
         
         if d['id'][0] == 'new':
-            pass
+            dev = devicedb.new_device()
+            dev.IDstr = "Undefined"
+            dev.device_type = "test"
+            dev.source_name = "csv"
+            devicedb.insert_device(dev)
         else:
             dev = devicedb.get_devices(where="id=%d"%(int(d['id'][0])),limit=1)[0]
 
@@ -325,10 +341,13 @@ def do_locationbuilder(req,environ,start_response):
             
             curlocs = devicedb.get_devicemetas(where="key='LOCATION' and %d=any(devices)"%dev.ID)
             
-            if ('location' not in post):
-                post['noloc'] = 'noloc'
             
-            if ( len(curlocs) > 1 or (len(curlocs) == 1 and ('noloc' in post or curlocs[0].ID != post['location'].value))):
+            if ('location' not in post or 'noloc' in post):
+                noloc = True
+            else:
+                noloc = False
+            
+            if ( len(curlocs) > 1 or (len(curlocs) == 1 and (noloc or curlocs[0].ID != post['location'].value))):
                 for loc in curlocs:
                     loc.devices.remove(dev.ID)
                     devicedb.update_devicemeta(loc);

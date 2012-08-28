@@ -1,0 +1,8 @@
+name = "Tweet-a-Watt (XBee)"
+ID_string_format = "64-bit Device Address"
+
+svgfile = "$(device_dir)/tweetawatt.svg"
+
+feeds @= "Instantaneous Voltage"
+feeds @+ "Instantaneous Current"
+feeds @+ "True Power"
