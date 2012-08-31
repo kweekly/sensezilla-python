@@ -16,12 +16,9 @@ ERROR
 
 class Flow:
     def __init__(self):
-        from flow_processor import FlowDef
-        self.flowdef = FlowDef()
+        self.flow_name = ''
         self.time_from = datetime.now();
         self.time_to = datetime.now();
-        self.source_name = ''
-        self.source_id = ''
         self.task_ids = []
         self.file_ids = []
         self.status = STOPPED

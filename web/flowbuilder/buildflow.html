@@ -1,0 +1,79 @@
+<html>
+<title>Sensezilla Web Interface</title>
+<head>
+<link href="/static/style.css" rel="stylesheet" type="text/css">
+<style>
+td,th {
+    border-right:1px;
+    border-top:0px;
+}
+th {
+    padding-left: 20;
+}
+
+</style>
+<script>
+function addSelectRow() {
+        var table = document.getElementById('seltab');
+        var rownum = table.rows.length;
+        var row = table.insertRow( rownum );
+        
+        var cell0 = row.insertCell(0);
+        html = "<b>"+rownum+"&nbsp;&nbsp;&nbsp;</b>";
+        cell0.innerHTML = html;
+        
+        var cell1 = row.insertCell(1);
+        html = "<select name='seltype"+rownum+"'>";
+        html += "<option value='undefined'>--</option>";
+        html += "<option value='requires'>Requires</option>";
+        html += "<option value='groupby'>Group By</option>";
+        html += "</select>";
+        cell1.innerHTML = html;
+        
+        var cell2 = row.insertCell(2);
+        html = "<select name='selcat"+rownum+"'>";
+        html += "<option value='location'>location</option>";
+        html += "<option value='user'>user</option>";
+        html += "<option value='devtype'>device type</option>";
+        html += "<option value='plugload'>plug load</option>";
+        html += "</select>";
+        cell2.innerHTML = html;      
+}
+
+function addActionRow() {
+        var table = document.getElementById('dotab');
+        var rownum = table.rows.length;
+        var row = table.insertRow( rownum );
+        
+        var cell0 = row.insertCell(0);
+        html = "<b>"+rownum+"&nbsp;&nbsp;&nbsp;</b>";
+        cell0.innerHTML = html;
+        
+        
+        var cell1 = row.insertCell(1);
+        html = "<select name='acttype"+rownum+"'>";
+        html += "<option value='undefined'>--</option>";
+        html += "<option value='flow'>Run flow on each stream</option>";
+        html += "</select>";
+        cell1.innerHTML = html;
+        
+}
+
+</script>
+</head>
+<body>
+<b>Name:</b><input type=text style="width:500">
+
+<h4>Feed Selection:</h4>
+<table class=noborder id="seltab">
+<th>Num</th><th>Filter Type</th><th>Filter Attribute</th><th>Filter Value</th>
+</table>
+<input type=button value="Insert Row" onClick="addSelectRow();">
+</body>
+
+<h4>Actions:</h4>
+<table class=noborder id="dotab">
+<tr><th>Num</th><th>Action Type</th><th>Action Value</th></tr>
+</table>
+<input type=button value="Insert Row" onClick="addActionRow();">
+</html>

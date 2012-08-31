@@ -26,17 +26,32 @@ elif sys.argv[1] == 'list':
             print "Source name: "+name
             fmap = config.read_struct(config.map['global']['source_dir']+'/'+file);
             for key,val in sorted(fmap.items()):
-                if ( key != 'devices' ):
-                    print "\t%-10s : %s"%(key,val)
+                print "\t%-10s : %s"%(key,val)
                     
             print ""
-            if ( not fmap.has_key('devices') or len(fmap['devices']) <= 0 ):
-                print "\t[No devices configured]"
-            else:
-                print "\tDevices"
-                for dev in fmap['devices']:
-                    print "\t\t"+dev
-            print ""
+            
+            import devicedb
+            import postgresops
+            devicedb.connect()
+            devdefs = {}
+            if devicedb.connected():
+                postgresops.check_evil(name)
+                devices = devicedb.get_devices(where="source_name='%s'"%name,orderby='device_type ASC')
+                for dev in devices:
+                    
+                    if ( not devdefs.has_key(dev.device_type) ):
+                        devdefs[dev.device_type] = utils.read_device(dev.device_type)
+                    
+                    print "\t%s (%s):"%(dev.IDstr,devdefs[dev.device_type]['name'])
+                        
+                    for idx in range(len(dev.source_ids)):
+                        id = dev.source_ids[idx]
+                        print "\t\t%20s : %s"%(devdefs[dev.device_type]['feeds'][idx],id)
+                        
+                    print ""
+                
+            
+            
 elif sys.argv[1] == 'fetch':
     import pycurl
     

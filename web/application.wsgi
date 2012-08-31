@@ -5,7 +5,7 @@ import psutil
 import cgi 
                 
 from jinja2 import * 
-
+ 
 sys.path.append(os.path.dirname(__file__))         
      
 def application(environ, start_response):
@@ -44,6 +44,9 @@ def application(environ, start_response):
         elif (req.startswith("/locationbuilder")):
             from locationbuilder import do_locationbuilder
             return do_locationbuilder(req,environ,start_response)
+        elif (req.startswith("/flowbuilder")):
+            from flowbuilder import do_flowbuilder
+            return do_flowbuilder(req,environ,start_response)
         else:
             start_response('301 Redirect', [('Location', '/index')]);
             return []
