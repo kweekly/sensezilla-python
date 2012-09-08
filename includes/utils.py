@@ -2,6 +2,13 @@ from datetime import datetime, timedelta
 import time, os, sys
 import config
 
+CACHE_TIMEOUT = 5
+
+source_struct_cache = {}
+source_timeouts = {}
+device_struct_cache = {}
+device_timeouts = {}
+
 def str_to_date(dstr):
     try:
         posix = int(dstr)
@@ -73,11 +80,21 @@ def list_devicedefs():
             ret.append(name)
     return ret
 
-def read_source(source):
-     return config.read_struct(config.map['global']['source_dir']+'/'+source+".src");
+def read_source(source,use_cache=True):
+    if source in source_struct_cache and use_cache and time.time() < source_timeouts[source] + CACHE_TIMEOUT:
+        return source_struct_cache[source]
+    else:
+        source_struct_cache[source] = config.read_struct(config.map['global']['source_dir']+'/'+source+".src");
+        source_timeouts[source] = time.time()
+        return source_struct_cache[source]
  
-def read_device(device):
-     return config.read_struct(config.map['global']['device_dir']+'/'+device+".dev");
+def read_device(device,use_cache=True):
+    if device in device_struct_cache and use_cache and time.time() < device_timeouts[device] + CACHE_TIMEOUT:
+        return device_struct_cache[device]
+    else:
+        device_struct_cache[device] = config.read_struct(config.map['global']['device_dir']+'/'+device+".dev");
+        device_timeouts[device] = time.time()
+        return device_struct_cache[device]
  
 def check_arg(argv,arg,nvals=0):
     try:
@@ -88,4 +105,19 @@ def check_arg(argv,arg,nvals=0):
     except:pass
     return False,[],argv
         
-    
+def hexify(str):
+    return ''.join(['%02X'%ord(i) for i in str]);
+
+def unhexify(str):
+    return ''.join([chr(int(str[i:i+2],16)) for i in range(0,len(str),2)])
+
+def undecify(str):
+    return unhexify(hex(str)[2:])
+
+def strip0s(str):
+    i = 0
+    while i < len(str):
+        if (ord(str[i]) != 0):
+            return str[i:]
+        i += 1;
+    return '\x00'

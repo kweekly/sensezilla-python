@@ -30,4 +30,5 @@ pip-log.txt
 *_pb2.py
 *.log
 *.csv
+conf/local.conf
 

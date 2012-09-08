@@ -1,5 +1,6 @@
 type = TIMESERIES
 driver = CSV
+path = $(data_dir)/csvstreams
 
 # default units are SI
 intr = 1

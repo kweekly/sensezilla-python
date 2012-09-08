@@ -1,0 +1,19 @@
+package messages;
+
+message XBee_Relay_Cmd {
+	enum Command {
+		PUBLISH_DATA = 1;
+		FORWARD_TO_XBEE = 2; // requires "to" address
+		BROADCAST_TO_XBEE = 3;
+		REGISTER_AS_RELAY = 4;
+	}
+
+	optional Command command = 1;
+
+	optional string source = 2;
+	optional string to = 3;
+	
+	optional string data = 4;
+	
+	optional int32 seq_no = 5;
+}

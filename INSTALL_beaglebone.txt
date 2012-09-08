@@ -1,0 +1,24 @@
+
+Opkg packages needed:
+    python-compile
+    python-distutils
+    python-pyserial
+    
+    openssh-keygen
+    
+Setup key:
+    ssh-keygen   -> Insert public key into repo
+    
+    git clone git@github.com:kweekly/sensezilla-python.git
+    
+Setup protobuf:
+    transfer protobuf-2.4.1-built.tar
+    tar xvf protobuf-2.4.1-built
+    cd protobuf-2.4.1/
+    make install
+    cd python
+    python setup.py install
+    
+Setup UART1:
+    http://www.gigamegablog.com/2012/01/22/beaglebone-coding-101-using-the-serial-and-analog-pins/
+    
