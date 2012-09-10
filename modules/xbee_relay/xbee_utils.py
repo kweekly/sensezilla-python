@@ -28,7 +28,7 @@ if DRIVER == 'beagleboard':
     do_cmd('echo 20 > /sys/kernel/debug/omap_mux/uart1_rxd')
     do_cmd('echo 0 > /sys/kernel/debug/omap_mux/uart1_txd')
     
-    SERIAL_PORT = '/dev/ttyO    1'
+    SERIAL_PORT = '/dev/ttyO1'
 elif DRIVER == 'direct' or True:
     SERIAL_PORT = config.map['xbee_relay']['serial_port']
     

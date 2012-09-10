@@ -94,9 +94,9 @@ try:
                 print "Don't know what to do with frame type=",frame['id']
             
          # simulation
-        if ( time.time() > last_sim_send + 1 and xbee_relay_IF.connected()):  
-            xbee_relay_IF.publish("13A20040771205","\x01"*(4*(12+1)))
-            last_sim_send = time.time()
+        #if ( time.time() > last_sim_send + 1 and xbee_relay_IF.connected()):  
+        #    xbee_relay_IF.publish("13A20040771205","\x01"*(4*(12+1)))
+        #    last_sim_send = time.time()
         
         time.sleep(0.01);
 finally:
