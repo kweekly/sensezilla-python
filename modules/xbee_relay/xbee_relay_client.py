@@ -40,6 +40,13 @@ else:
 
 DRIVER = config.map['xbee_relay']['driver']
 if DRIVER == 'beagleboard':
+    def do_cmd(cmd):
+        print cmd
+        os.system(cmd);
+        
+    do_cmd('echo 20 > /sys/kernel/debug/omap_mux/uart1_rxd')
+    do_cmd('echo 0 > /sys/kernel/debug/omap_mux/uart1_txd')
+    
     SERIAL_PORT = '/dev/ttyS1'
 elif DRIVER == 'direct' or True:
     SERIAL_PORT = config.map['xbee_relay']['serial_port']
