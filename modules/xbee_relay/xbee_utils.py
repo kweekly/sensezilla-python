@@ -97,9 +97,12 @@ def init_xbee(s,x):
                 sstr = val
         except Exception,e:
             print "Error parsing AT Command",cmd," value ",sstr," : ",e
-            
-        if verify_at(cmd,sstr):
-            something_changed = True
+        
+        if cmd == 'NK' or cmd == 'KY':
+            xbee.send('at',command=atcmd,parameter=sstr)
+        else:
+            if verify_at(cmd,sstr):
+                something_changed = True
 
     if something_changed:
         xbee.send('at',command='WR')
