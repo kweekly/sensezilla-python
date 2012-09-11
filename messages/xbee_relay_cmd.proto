@@ -13,7 +13,7 @@ message XBee_Relay_Cmd {
 	optional string source = 2;
 	optional string to = 3;
 	
-	optional string data = 4;
+	optional bytes data = 4;
 	
 	optional int32 seq_no = 5;
 }
