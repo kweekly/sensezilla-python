@@ -63,20 +63,20 @@ def publish(source, data):
     cmd_msg = xbee_relay_cmd_pb2.XBee_Relay_Cmd()
     cmd_msg.command = xbee_relay_cmd_pb2.XBee_Relay_Cmd.PUBLISH_DATA
     cmd_msg.source = source;
-    cmd_msg.data = data;
+    cmd_msg.data = str(data);
     unixIPC.send("xbee_relay_cmd_pb2",cmd_msg.SerializeToString())
     return proc_end();    
 
 def forward(to, data):
     cmd_msg = xbee_replay_cmd_pb2.XBee_Relay_Cmd()
     cmd_msg.command = xbee_relay_cmd_pb2.XBee_Relay_Cmd.FORWARD_TO_XBEE
-    cmd_msg.data = data
+    cmd_msg.data = str(data)
     unixIPC.send("xbee_relay_cmd_pb2",cmd_msg.SerializeToString())
     return proc_end();
     
 def broadcast(data):   
     cmd_msg = xbee_replay_cmd_pb2.XBee_Relay_Cmd()
     cmd_msg.command = xbee_relay_cmd_pb2.XBee_Relay_Cmd.BROADCAST_TO_XBEE
-    cmd_msg.data = data
+    cmd_msg.data = str(data)
     unixIPC.send("xbee_relay_cmd_pb2",cmd_msg.SerializeToString())
     return proc_end();
