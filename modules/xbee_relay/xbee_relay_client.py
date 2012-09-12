@@ -112,7 +112,7 @@ try:
                 if ( data[0] == CMD_TIME_SYNC and len(data) == 5 ):
                     ts_recieved(source_addr,data[1:])
                 else:
-                    xbee_relay_IF.publish(source_addr,data)
+                    ctime = xbee_relay_IF.publish(source_addr,data)
                     if ( source_addr not in ts_updated and source_addr not in ts_sent_update  ):
                         ts_send(source_addr)
                     
@@ -120,8 +120,8 @@ try:
             else:
                 print "Don't know what to do with frame type=",frame['id']
             
-        for source,time in ts_sent_updated.iteritems():
-            if time.time() - time > MAX_TIMESTAMP_ERROR:
+        for source,stime in ts_sent_updated.iteritems():
+            if time.time() - stime > MAX_TIMESTAMP_ERROR:
                 ts_send(source)
             
          # simulation
