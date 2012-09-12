@@ -42,7 +42,7 @@ MAX_TIMESTAMP_ERROR = int(config.map['xbee_relay']['max_timestamp_error'])
 xbee_frames = []
 def frame_recieved(data):
     global xbee_frames
-    #print "Frame recieved: ",data
+    print "Frame recieved: ",data
     #if ( data.has_key('parameter')):
         #print "Parameter: "+utils.hexify(data['parameter'])
     xbee_frames.append(data)

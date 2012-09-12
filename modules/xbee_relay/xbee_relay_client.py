@@ -120,7 +120,7 @@ try:
             else:
                 print "Don't know what to do with frame type=",frame['id']
             
-        for source,time in ts_sent_updated.iteritems():
+        for source,time in ts_sent_update.iteritems():
             if time.time() - time > MAX_TIMESTAMP_ERROR:
                 ts_send(source)
             
