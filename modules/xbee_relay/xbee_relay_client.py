@@ -42,16 +42,16 @@ ts_updated = set()
 def ts_received(source,dat):
     rtime, = struct.unpack('<I')
     if ( time.time() - rtime > MAX_TIMESTAMP_ERROR ):
-        print "Device at "+utils.hexify(addr)+" got timesync, but is %d seconds off"%(time.time()-rtime)
+        print "Device at "+addr+" got timesync, but is %d seconds off"%(time.time()-rtime)
         ts_send(source)
     else:
-        print "Device at "+utils.hexify(addr)+" synced"
+        print "Device at "+addr+" synced"
         ts_updated.add(source)
         if source in ts_sent_update:
             ts_sent_update.pop(source)
 
 def ts_send(addr):
-    print "Sending Timesync message to "+utils.hexify(addr)
+    print "Sending Timesync message to "+addr
     curtime = time.time();
     send_to_xbee(addr, CMD_TIME_SYNC + struct.pack('<I',int(curtime)) )
     ts_sent_update[addr] = curtime;
