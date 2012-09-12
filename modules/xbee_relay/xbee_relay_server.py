@@ -64,12 +64,12 @@ def sendToXbee(xbee_addr, data):
             
     return msg.seq_no
 
-def unpack_several(data, offset=0, numfields=1, datatype='l'):
-    return struct.unpack_from('>'+datatype*numfields,data,offset)
+def unpack_several(data, offset=0, numfields=1, datatype='l', endian='<'):
+    return struct.unpack_from(endian+datatype*numfields,data,offset)
     
 
 def publish(source, data):
-    print "Publish from %s data %s"%(source,utils.hexify(data))
+    #print "Publish from %s data %s"%(source,utils.hexify(data))
     if len(data) == 4*(1+12):
         guess_device = 'powerstripv1'
     else:
@@ -82,9 +82,9 @@ def publish(source, data):
     
     if dev.device_type == 'powerstripv1':
         off = 0
-        (timestamp,) = struct.unpack_from('>l',data)
+        (timestamp,) = struct.unpack_from('<l',data)
         off += 4
-        datapoints = list(unpack_several(data,off,12,'l'))
+        datapoints = list(unpack_several(data,off,12,'f',endian='<'))
         off += 4*12
         publisher.publish_data(source, timestamp, datapoints)
     else:

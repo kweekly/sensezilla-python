@@ -3,18 +3,18 @@ ID_string_format = "64-bit Device Address"
 
 svgfile = "$(device_dir)/powerstrip.svg"
 
-feeds @= "RMS Voltage 1"
+feeds @= "True Power 1"
 feeds @+ "RMS Current 1"
-feeds @+ "True Power 1"
+feeds @+ "RMS Voltage 1"
 
-feeds @+ "RMS Voltage 2"
-feeds @+ "RMS Current 2"
 feeds @+ "True Power 2"
+feeds @+ "RMS Current 2"
+feeds @+ "RMS Voltage 2"
 
-feeds @+ "RMS Voltage 3"
-feeds @+ "RMS Current 3"
 feeds @+ "True Power 3"
+feeds @+ "RMS Current 3"
+feeds @+ "RMS Voltage 3"
 
-feeds @+ "RMS Voltage 4"
-feeds @+ "RMS Current 4"
 feeds @+ "True Power 4"
+feeds @+ "RMS Current 4"
+feeds @+ "RMS Voltage 4"

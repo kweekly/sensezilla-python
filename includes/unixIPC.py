@@ -340,4 +340,9 @@ class UnixIPC:
     def close(self):
         for client in self.clients:
             client.sock.close();
-        if self.mode == "server": self.server_socket.close();
+        if self.mode == "server": 
+            for i in range(10):
+                self.tick();
+                time.sleep(.05)
+            self.server_socket.close();
+            time.sleep(.5)
