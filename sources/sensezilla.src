@@ -1,6 +1,7 @@
 type = TIMESERIES
 driver = SMAP
 url = http://sensezilla.eecs.berkeley.edu/backend/
+apikey = $(smap_api_key)
 
 # default units are in "millis" 
 intr = m

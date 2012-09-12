@@ -6,6 +6,7 @@ import postgresops
 import uuid
 import os
 
+from smap import core, server, util
 
 DEFAULT_NEW_DEVICE = config.map['publisher']['default_new_device']
 CREATE_NEW_DEVICE = True if config.map['publisher']['create_new_device'].lower() == 'true' else False
@@ -13,7 +14,12 @@ DEFAULT_NEW_SOURCE = config.map['publisher']['default_new_source']
 
 CACHE_TIMEOUT = 5
 
+SMAP_UUID = config.map['publisher']['smap_UUID']
+SMAP_DATAFILE = config.map['global']['data_dir'] + '/' + 'smap_datafile'
+
 device_cache = {}
+
+smap_instances = {}
 
 def gen_source_ids(device):
     struct = utils.read_source(device.source_name)
@@ -61,6 +67,38 @@ def find_device(id_str, create_new=False, device_type=None, source=None ):
         
     return dev
 
+def publish_smap(source_name,sourcedef,dev,devdef,feednum,uuid,time,data):
+    if source_name not in smap_instances:
+        inst = core.SmapInstance(SMAP_UUID,reportfile=SMAP_DATAFILE)
+        rpt = {
+               'ReportDeliveryLocation' : sourcedef['url']+'/add/'+sourcedef['apikey'],
+               'ReportResource' : '/+',
+               'uuid' : inst.uuids('report 0')
+        }
+        if not inst.reports.update_report(rpt):
+            inst.reports.add_report(rpt)
+        inst.reports.update_subscriptions()
+        
+        smap_instances[source_name] = inst
+    else:
+        inst = smap_instances[source_name]     
+    
+    ts = inst.get_timeseries(uuid)
+    if ts == None:
+        ts = inst.add_timeseries('/'+dev.ID+'/'+devdef.feeds[feednum],uuid.UUID(uuid),devdef.feeds[feednum],datatype='double',milliseconds=False)
+        smapmeta = {'Instrument/ModelName' : devdef['name'],
+                    'Instrument/DeviceDefinition' : dev.device_type,
+                    'Instrument/ID' : dev.IDstr,
+                    'Instrument/FeedIndex' : str(feednum),
+                    'Instrument/FeedName' : devdef.feeds[feednum] }
+        locmeta = devicedb.get_devicemetas(where="key='LOCATION' and %d=any(devices)",limit=1)
+        if len(locmeta) > 0:
+            smapmeta['Location/CurrentLocation'] = locmeta[0].value
+            
+        inst.set_metadata(uuid, locmeta)
+    
+    ts.add(time,data)
+
 def publish_data(id_str, time, data, feednum=None, device_type=None, source=None):    
     if not isinstance(data, list):
         data = [data]
@@ -96,7 +134,7 @@ def publish_data(id_str, time, data, feednum=None, device_type=None, source=None
         else:
             source_id = dev.source_ids[feednum[i]]
             if driver == 'SMAP':
-                pass
+                publish_smap(dev.source_name,source_struct,dev,devdef,feednum[i],source_id,time[i],data[i])
             elif driver == 'CSV':
                 fname = source_id
                 if fname[0] != '/':
