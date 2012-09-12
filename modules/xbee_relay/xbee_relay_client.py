@@ -34,12 +34,15 @@ init_xbee(ser, xbee);
 
 children_cache = set()
 
+source16_cache = {}
+
 CMD_TIME_SYNC = '\x01';
 
 
 ts_sent_update = {}
 ts_updated = set()
 def ts_received(source,dat):
+    global ts_sent_update,ts_updated
     rtime, = struct.unpack('<I')
     if ( time.time() - rtime > MAX_TIMESTAMP_ERROR ):
         print "Device at "+addr+" got timesync, but is %d seconds off"%(time.time()-rtime)
@@ -51,6 +54,7 @@ def ts_received(source,dat):
             ts_sent_update.pop(source)
 
 def ts_send(addr):
+    global ts_sent_update, ts_updated
     print "Sending Timesync message to "+addr
     curtime = time.time();
     send_to_xbee(addr, CMD_TIME_SYNC + struct.pack('<I',int(curtime)) )
@@ -61,7 +65,13 @@ def send_to_xbee(dest, data):
     global children_cache
     
     if not SEND_ONLY_TO_CACHE or dest in children_cache:
-        xbee.send('tx',dest_addr_long=utils.unhexify(dest),data=data)
+        if dest in source16_cache:
+	    s16 = source16_cache[dest]
+	else:
+	    s16 = '\xFF\xFE'
+	
+	print ">"+dest+","+utils.hexify(s16)+" : "+utils.hexify(data)
+        xbee.send('tx',dest_addr_long=utils.unhexify(dest),dest_addr=s16,data=data)
         return True
     else:
         return False
@@ -86,7 +96,7 @@ try:
                             resp.cod = xbee_relay_resp_pb2.XBee_Relay_Resp.ADDRESS_NOT_FOUND
                     elif ( cmd_msg.command == xbee_relay_cmd_pb2.XBee_Relay_Cmd.BROADCAST_TO_XBEE ):
                         if IEEE_BROADCAST:
-                            xbee.send('tx',dest_addr='\xFF\xFF',data=cmd_msg.data)
+                            xbee.send('tx',dest_addr='\xFF\xFF',dest_addr_long='\x00\x00\x00\x00\x00\x00\xFF\xFF',data=cmd_msg.data)
                         else:
                             for d in children_cache:
                                 send_to_xbee(d,cmd_msg.data)
@@ -111,19 +121,24 @@ try:
                 pass
             elif frame['id'] == 'rx':
                 source_addr = utils.hexify(frame['source_addr_long'])
+		source16_cache[source_addr] = frame['source_addr']
                 data = frame['rf_data']
+                print "<"+source_addr+","+utils.hexify(frame['source_addr'])+" : "+utils.hexify(data)
+                children_cache.add(source_addr)
+
                 if ( data[0] == CMD_TIME_SYNC and len(data) == 5 ):
                     ts_recieved(source_addr,data[1:])
                 else:
-                    xbee_relay_IF.publish(source_addr,data)
+		    if xbee_relay_IF.connected():
+                        xbee_relay_IF.publish(source_addr,data)
                     if ( source_addr not in ts_updated and source_addr not in ts_sent_update  ):
                         ts_send(source_addr)
                     
-                children_cache.add(source_addr)
             else:
                 print "Don't know what to do with frame type=",frame['id']
             
-        for source,stime in ts_sent_update.iteritems():
+        for source,stime in ts_sent_update.items():
+	    #print source,stime
             if time.time() - stime > MAX_TIMESTAMP_ERROR:
                 ts_send(source)
             
