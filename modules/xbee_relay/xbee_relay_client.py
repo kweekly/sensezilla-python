@@ -12,6 +12,7 @@ sys.path.insert(0,os.environ['SENSEZILLA_DIR']+"/includes");
 import config
 import utils
 import unixIPC
+import struct
 
 import google.protobuf
 import xbee_relay_cmd_pb2
@@ -26,14 +27,33 @@ from xbee_utils import *
 xbee_relay_IF.connect();
 xbee_relay_IF.register_as_relay();
 
-
-
 ser = serial.Serial(SERIAL_PORT,int(config.map['xbee_relay']['serial_speed']))
 xbee = ZigBee(ser, callback=frame_recieved)
  
 init_xbee(ser, xbee);
 
 children_cache = set()
+
+CMD_TIME_SYNC = '\x01';
+
+
+ts_sent_update = {}
+ts_updated = set()
+def ts_received(source,dat):
+    rtime, = struct.unpack('<I')
+    if ( time.time() - rtime > MAX_TIMESTAMP_ERROR ):
+        ts_send(source)
+    else:
+        ts_updated.add(source)
+        if source in ts_sent_update:
+            ts_sent_update.pop(source)
+
+def ts_send(addr):
+    curtime = time.time();
+    send_to_xbee(addr, CMD_TIME_SYNC + struct.pack('<I',int(curtime)) )
+    ts_sent_update[addr] = curtime;
+
+
 def send_to_xbee(dest, data):
     global children_cache
     
@@ -89,9 +109,20 @@ try:
             elif frame['id'] == 'rx':
                 source_addr = utils.hexify(frame['source_addr_long'])
                 data = frame['rf_data']
-                xbee_relay_IF.publish(source_addr,data)
+                if ( data[0] == CMD_TIME_SYNC and len(data) == 5 ):
+                    ts_recieved(source_addr,data[1:])
+                else:
+                    xbee_relay_IF.publish(source_addr,data)
+                    if ( source_addr not in ts_updated and source_addr not in ts_sent_update  ):
+                        ts_send(source_addr)
+                    
+                children_cache.add(source_addr)
             else:
                 print "Don't know what to do with frame type=",frame['id']
+            
+        for source,time in ts_sent_updated.iteritems():
+            if time.time() - time > MAX_TIMESTAMP_ERROR:
+                ts_send(source)
             
          # simulation
         #if ( time.time() > last_sim_send + 1 and xbee_relay_IF.connected()):  

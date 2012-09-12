@@ -37,6 +37,7 @@ AT_COMMANDS = config.map['xbee_relay']['at_cmds']
 SEND_ONLY_TO_CACHE = True if config.map['xbee_relay']['send_only_to_cache'].lower() == 'true' else False
 IEEE_BROADCAST = True if config.map['xbee_relay']['ieee_broadcast'].lower() == 'true' else False
 
+MAX_TIMESTAMP_ERROR = int(config.map['xbee_relay']['max_timestamp_error'])
 
 xbee_frames = []
 def frame_recieved(data):
