@@ -41,7 +41,7 @@ IEEE_BROADCAST = True if config.map['xbee_relay']['ieee_broadcast'].lower() == '
 xbee_frames = []
 def frame_recieved(data):
     global xbee_frames
-    print "Frame recieved: ",data
+    #print "Frame recieved: ",data
     #if ( data.has_key('parameter')):
         #print "Parameter: "+utils.hexify(data['parameter'])
     xbee_frames.append(data)
