@@ -79,16 +79,19 @@ def publish(source, data):
     dev = publisher.find_device(source, create_new=True, device_type=guess_device )
     if dev == None:
         return;
-    
-    if dev.device_type == 'powerstripv1':
-        off = 0
-        (timestamp,) = struct.unpack_from('<l',data)
-        off += 4
-        datapoints = list(unpack_several(data,off,12,'f',endian='<'))
-        off += 4*12
-        publisher.publish_data(source, timestamp, datapoints)
-    else:
-        print "Device type %s not recognized by xbee server"%dev.device_type
+
+    try: 
+        if dev.device_type == 'powerstripv1':
+            off = 0
+            (timestamp,) = struct.unpack_from('<l',data)
+            off += 4
+            datapoints = list(unpack_several(data,off,12,'f',endian='<'))
+            off += 4*12
+            publisher.publish_data(source, timestamp, datapoints)
+        else:
+            print "Device type %s not recognized by xbee server"%dev.device_type
+    except struct.error, emsg:
+        print "Error unpacking packet from %s device (%s): %s"%(dev.device_type,str(emsg),utils.hexify(data))
 
 try:
     while True:
@@ -149,7 +152,9 @@ try:
         for key in rmkeys:
             message_tracking_map.pop(key)
         
-        
+
+        publisher.tick();        
+
         time.sleep(0.1)
 except:
         import traceback

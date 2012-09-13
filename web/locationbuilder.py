@@ -425,6 +425,7 @@ def do_locationbuilder(req,environ,start_response):
         def rgenusers(id,userlist):
             metas = devicedb.get_devicemetas(where="key='USER' and parent=%d"%id,orderby='value ASC')
             if ( len(metas) == 0 ):
+                if (id == 0): return 0;
                 u = devicedb.get_devicemetas(where="id=%d"%id)
                 userlist.append(u[0])
                 if dev.ID in u[0].devices:
