@@ -15,6 +15,7 @@ import scheduler_resp_pb2
 import asyncprocess
 import signal
 import psutil
+import shlex
 
 import google.protobuf
 
@@ -63,7 +64,7 @@ def check_db():
     for task in tasks:
         task.changed = False
         if (task.status == scheduledb.WAITING_FOR_INPUT or (task.status == scheduledb.WAITING_FOR_START and task.start_after <= datetime.now())):
-            if ( len(task.prerequisites) > 0 and scheduledb.count(where=' or '.join(['id = %d'%i for i in task.prerequisites])+' and status != %d'%(scheduledb.DONE)) > 0):
+            if ( len(task.prerequisites) > 0 and scheduledb.count(where='('+' or '.join(['id = %d'%i for i in task.prerequisites])+')'+' and status != %d'%(scheduledb.DONE)) > 0):
                 task.status = scheduledb.WAITING_FOR_INPUT
                 task.changed = True
             else:
@@ -146,7 +147,7 @@ def child_start_task(task):
         child_write_out(child,"Couldn't open log file for writing: "+str(msg))
         
     try:
-        child.process = asyncprocess.Popen(task.command.split(' '), stdin=asyncprocess.PIPE, stderr=asyncprocess.PIPE, stdout=asyncprocess.PIPE, bufsize=1, universal_newlines=True);
+        child.process = asyncprocess.Popen(shlex.split(task.command), stdin=asyncprocess.PIPE, stderr=asyncprocess.PIPE, stdout=asyncprocess.PIPE, bufsize=1, universal_newlines=True);
         child.task.pid = child.process.pid
         child.task.status = scheduledb.RUNNING
         child.start_time = datetime.now()

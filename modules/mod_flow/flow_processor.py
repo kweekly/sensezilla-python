@@ -1,4 +1,5 @@
 #!/usr/bin/python
+# -*- coding: utf-8 -*-
 
 import sys,os, time
 if 'SENSEZILLA_DIR' not in os.environ:
@@ -11,6 +12,7 @@ import utils
 from datetime import datetime
 import tempfile
 from mod_scheduler import scheduledb
+import shlex
 
 class File:pass
 
@@ -20,7 +22,7 @@ class FlowDef:
     def __init__(self):
         pass
     
-    def run(self, time_from, time_to, source_name=None, source_id=None, pretend=False, use_cache=True, local=False):
+    def run(self, time_from, time_to, source_name=None, source_id=None, pretend=False, use_cache=True, local=False, params=[]):
         if source_id == None and local:
             print "Error: Can only run 'local' test on one stream ( source name & id pair ) at a time"
             sys.exit(1)
@@ -61,6 +63,10 @@ class FlowDef:
         
             # prune any tasks that don't need to be run
             for step in self.steps[:]:
+                if ( len(step.outputs) == 0):
+                    print "Step %s will be run b/c it has no outputs"%step.name
+                    continue
+                    
                 canbepruned = True
                 for f in step.outputs:
                     if not f.cached:
@@ -132,21 +138,56 @@ class FlowDef:
 
 
         # generate dictionary of substitutions
-        subs = [
-                ('TIME_FROM',int(utils.date_to_unix(time_from))),
-                ('TIME_TO',int(utils.date_to_unix(time_to))),
-                ('SOURCE',source_name),
-                ('DEVICE',source_id)                
-        ]
+        subs = {
+                'TIME_FROM':int(utils.date_to_unix(time_from)),
+                'TIME_TO':int(utils.date_to_unix(time_to)),
+                'SOURCE':source_name,
+                'ID':source_id                
+        };
+        subs.update(params)
+        
+        try:
+            import devicedb
+            devicedb.connect()
+            plmeta,dev,pl_index = devicedb.find_plugload(source_name,source_id)
+            subs['PLUGLOAD'] = plmeta.value;
+            subs['DEVID'] = dev.ID
+            subs['DEVIDSTR'] = dev.IDstr
+            
+        except Exception,e:
+            print "Cannot contact devicedb "+str(e)
         
         for key,val in smap.items():
             if ( type(val) is str ):
-                subs.append(('SOURCE.'+key,val))
-            
+                subs['SOURCE.'+key] = val;
+        
+        def procsub(s):
+            i = s.find('%{')
+            if i == -1:
+                return s
+            cnt = 0
+            s = s[0:i] + procsub(s[i+2:]);
+            i2 = s.find('}',i)
+            s2 = s[i:i2]
+            repl = '';
+            if ( s2[0] == '?' ):
+                pts = s2.split(':');
+                if ( len(pts) != 3 ):
+                    print "Error parsing flow file ternary statement: "+s2
+                else:
+                    if ( pts[0] == '?' ):
+                        repl = pts[2]
+                    else:
+                        repl = pts[1]
+            elif s2 in subs:
+                repl = str(subs[s2])
+                
+            return s[0:i] + repl + s[i2+1:];
+        
         for step in self.steps:
             cmd = step.cmd;
-            for subk,subv in subs:
-                cmd = cmd.replace('%%{%s}'%subk,str(subv))
+            
+            cmd = procsub(cmd)
             
             # do file subs
             if len(step.outputs) > 0:
@@ -174,7 +215,8 @@ class FlowDef:
             task.status = scheduledb.WAITING_FOR_START
             task.profile_tag = step.profile
             if ofile == None: 
-                task.log_file = '/dev/null'
+                tfile = tempfile.NamedTemporaryFile('w', dir=dir, delete=False)
+                task.log_file = tfile.name+'.log'
             else:
                 task.log_file = ofile.fname+'.log'
             step.task = task
@@ -206,8 +248,9 @@ class FlowDef:
                 if not s.done:
                     print "Executing %s\n"%(s.task.command)
                     if not pretend:
-                        if 0 != subprocess.call(s.task.command.split(' ')):
-                            raise Exception("Error running step %s"%s2.name)
+                        if 0 != subprocess.call(shlex.split(s.task.command)):
+                            raise Exception("Error running step %s"%s.name)
+                        
                     s.done = True
             
             for s in self.steps:
@@ -331,45 +374,48 @@ def read_flow_file(fname):
                 print "ERROR: Couldn't find output "+outspec
                 sys.exit(1)
     
-    index = 0
-    for file in flow.files:
-        if ( file.src.name+'.O%d'%file.index in lmap['outputs'] ):
-            found = True
-            file.dests.append(('OUTPUT',index))
-            flow.outputs.append(file)
-            index += 1
-            break
+    if 'outputs' in lmap:
+        index = 0
+        for file in flow.files:
+            if ( file.src.name+'.O%d'%file.index in lmap['outputs'] ):
+                found = True
+                file.dests.append(('OUTPUT',index))
+                flow.outputs.append(file)
+                index += 1
+                break
     
-    # now prune any steps/files not needed
-    for step in flow.steps:
-        step.mark = False
-    for file in flow.files:
-        file.mark = False
+        # now prune any steps/files not needed
+        for step in flow.steps:
+            step.mark = False
+        for file in flow.files:
+            file.mark = False
     
-    def mark_recursive(file):
-        file.src.mark = True
-        file.mark = True
-        for f in file.src.inputs:
-            mark_recursive(f)
+        def mark_recursive(file):
+            file.src.mark = True
+            file.mark = True
+            for f in file.src.inputs:
+                mark_recursive(f)
     
-    for file in flow.outputs:
-        mark_recursive(file)
+        for file in flow.outputs:
+            mark_recursive(file)
         
-    for step in flow.steps[:]:
-        if not step.mark:
-            print "Pruning step %s: no connection to output"%(step.name)
-            flow.steps.remove(step)
+        for step in flow.steps[:]:
+            if not step.mark:
+                print "Pruning step %s: no connection to output"%(step.name)
+                flow.steps.remove(step)
     
-    for file in flow.files[:]:
-        if not file.mark:
-            print "Pruning file %s.O%d : no connection to output"%(file.src.name,file.index)
-            flow.files.remove(file)
+        for file in flow.files[:]:
+            if not file.mark:
+                print "Pruning file %s.O%d : no connection to output"%(file.src.name,file.index)
+                flow.files.remove(file)
+    else:
+        print "No outputs in flow definition, all tasks are run"
     
     def build_file_dep_str(file):
-        return file.src.name+'('+','.join([build_file_dep_str(f) for f in file.src.inputs])+')'
+        return file.src.name+'('+','.join([build_file_dep_str(f) for f in file.src.inputs])+')[%d]'%file.index
         
     for file in flow.files:
-        file.stepchain = build_file_dep_str(file)    
+        file.stepchain = build_file_dep_str(file)
     
     if (len(flow.steps) <= 0 ):
         raise Exception("ERROR: No steps left after pruning")    

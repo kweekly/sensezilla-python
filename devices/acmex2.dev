@@ -3,6 +3,8 @@ ID_string_format = "IEEE802.15.4 64-bit MAC Address"
 
 svgfile = "$(device_dir)/acmex2.svg"
 
+plugload_groups = 3
+
 feeds @= "Apparent Power"
 feeds @+ "True Energy"
 feeds @+ "True Power"

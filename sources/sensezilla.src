@@ -4,8 +4,8 @@ url = http://sensezilla.eecs.berkeley.edu/backend/
 apikey = $(smap_api_key)
 
 # default units are in "millis" 
-intr = m
-invr = m
+intr = 1000
+invr = 1000
 
 ## add devices here
 ID_string_format = "UUID of SMAP stream"

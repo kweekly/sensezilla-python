@@ -1,0 +1,4 @@
+name = "Computed Measurements"
+ID_string_format = "Unique Description of the Computation"
+
+feeds @= "Output"

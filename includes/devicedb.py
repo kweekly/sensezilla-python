@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 
 import psycopg2, os, sys
 import config
@@ -51,15 +52,16 @@ def initdb():
           ("devices","integer[]")
           ))
 
+
 def new_device():
     if connected():
         while True:
-            newint = id_rgen.randint(1, 2**31-1)
+            newint = id_rgen.randint(10, 2**31-1)
             postgresops.dbcur.execute("SELECT id from devices.physical where id=%s limit 1",(newint,))
             if ( postgresops.dbcur.rowcount == None or postgresops.dbcur.rowcount <= 0):
                 break
     else:
-        newint = id_rgen.randint(1, 2**31-1)        
+        newint = id_rgen.randint(10, 2**31-1)        
     
     dev = Device()
     dev.ID = newint
@@ -68,12 +70,12 @@ def new_device():
 def new_devicemeta():
     if connected():
         while True:
-            newint = id_rgen.randint(1, 2**31-1)
+            newint = id_rgen.randint(10, 2**31-1)
             postgresops.dbcur.execute("SELECT id from devices.metadata where id=%s limit 1",(newint,))
             if ( postgresops.dbcur.rowcount == None or postgresops.dbcur.rowcount <= 0):
                 break
     else:
-        newint = id_rgen.randint(1, 2**31-1)        
+        newint = id_rgen.randint(10, 2**31-1)        
     
     dev = DeviceMeta()
     dev.ID = newint
@@ -164,6 +166,33 @@ def get_devicemetas(where='',orderby='',limit=None):
         retval.append(devicemeta_for_row(row))
         
     return retval
+    
+def find_plugload(sourcename,sourceid):
+    device_rows = get_devices(where="source_name='%s' and '%s'=any(source_ids)"%(sourcename,sourceid),limit=1)
+    if ( len(device_rows) == 0 ):
+        return None,None,None
+    
+    dev = device_rows[0]
+    chan_index = dev.source_ids.index(sourceid)
+    
+    devdef = utils.read_device(dev.device_type)
+    if 'plugload_groups' in devdef:
+        plgroups = [int(s) for s in devdef['plugload_groups'].split(',')]
+        
+        tchan = chan_index;
+        pl_index = 0;
+        while ( pl_index < len(plgroups) and tchan >= plgroups[pl_index] ):
+            tchan -= plgroups[pl_index];
+            pl_index += 1;
+    else:
+        pl_index = 0;
+        
+    plugload_row = get_devicemetas(where="key='PLUGLOAD%d'and %d=any(devices)"%(pl_index,dev.ID), limit=1)
+    if( len(plugload_row)==0):
+        return None,dev,pl_index
+        
+    return plugload_row[0],dev,pl_index
+
 
 def row_for_device(dev):
     return ( dev.ID, dev.IDstr, dev.device_type, dev.source_name, dev.source_ids )
@@ -180,6 +209,8 @@ def devicemeta_for_row(row):
     dev = DeviceMeta()
     ( dev.ID, dev.parent, dev.key, dev.value, dev.devices ) = row;
     return dev
+    
+
         
 if __name__ == '__main__':
     connect();

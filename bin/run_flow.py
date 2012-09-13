@@ -1,4 +1,5 @@
 #!/usr/bin/python
+# -*- coding: utf-8 -*-
 
 import sys,os, time
 if 'SENSEZILLA_DIR' not in os.environ:
@@ -19,7 +20,7 @@ Usage: run_flow.py [list | run]
     
     list : List available flows to run
     
-    run <flow name> [--from <from time>] [--to <to time>] [--pretend] [--nocache] [--local] [<source name> <device identifier>] 
+    run <flow name> [--from <from time>] [--to <to time>] [--pretend] [--nocache] [--local] [--param name=value] [<source name> <device identifier>] 
         Run the given flow.  Optional time interval, default is past day.
         Optional source name and device identifier, default is all known devices.
         --pretend is for testing, doesn't actually add the tasks to the task manager
@@ -59,12 +60,19 @@ elif (sys.argv[0] == 'run'):
     local,j,sys.argv = utils.check_arg(sys.argv,'--local')
     nocache,j,sys.argv = utils.check_arg(sys.argv,'--nocache')
     
+    params = {}
+    while True:
+        ret,vals,sys.argv = utils.check_arg(sys.argv,'--param',1)
+        if not ret: break
+        name,value = vals[0].split('=')
+        params[name] = value;
+    
     flow = flow_processor.read_flow_file(sys.argv[1])
     if ( flow ):
         if ( len(sys.argv) > 2 ):
-            flow.run( fromtime, totime, sys.argv[2], sys.argv[3], pretend = pretend, local=local,use_cache= not nocache )
+            flow.run( fromtime, totime, sys.argv[2], sys.argv[3], pretend = pretend, local=local,use_cache= not nocache, params=params )
         else:
-            flow.run( fromtime, totime, pretend = pretend, use_cache= not nocache, local=local )
+            flow.run( fromtime, totime, pretend = pretend, use_cache= not nocache, local=local,params=params )
     else:
         print "couldn't load the flow definition file"
 else:
