@@ -41,17 +41,6 @@ CMD_TIME_SYNC = '\x01';
 
 ts_sent_update = {}
 ts_updated = set()
-def ts_received(source,dat):
-    global ts_sent_update,ts_updated
-    rtime, = struct.unpack('<I')
-    if ( time.time() - rtime > MAX_TIMESTAMP_ERROR ):
-        print "Device at "+addr+" got timesync, but is %d seconds off"%(time.time()-rtime)
-        ts_send(source)
-    else:
-        print "Device at "+addr+" synced"
-        ts_updated.add(source)
-        if source in ts_sent_update:
-            ts_sent_update.pop(source)
 
 def ts_send(addr):
     global ts_sent_update, ts_updated
@@ -70,7 +59,7 @@ def send_to_xbee(dest, data):
 	else:
 	    s16 = '\xFF\xFE'
 	
-	print ">"+dest+","+utils.hexify(s16)+" : "+utils.hexify(data)
+	#print ">"+dest+","+utils.hexify(s16)+" : "+utils.hexify(data)
         xbee.send('tx',dest_addr_long=utils.unhexify(dest),dest_addr=s16,data=data)
         return True
     else:
@@ -123,17 +112,29 @@ try:
                 source_addr = utils.hexify(frame['source_addr_long'])
 		source16_cache[source_addr] = frame['source_addr']
                 data = frame['rf_data']
-                print "<"+source_addr+","+utils.hexify(frame['source_addr'])+" : "+utils.hexify(data)
+                #print "<"+source_addr+","+utils.hexify(frame['source_addr'])+" : "+utils.hexify(data)
                 children_cache.add(source_addr)
 
-                if ( data[0] == CMD_TIME_SYNC and len(data) == 5 ):
-                    ts_recieved(source_addr,data[1:])
-                else:
-		    if xbee_relay_IF.connected():
-                        xbee_relay_IF.publish(source_addr,data)
-                    if ( source_addr not in ts_updated and source_addr not in ts_sent_update  ):
-                        ts_send(source_addr)
-                    
+                rtime = 0
+                if len(data) >= 4:
+                    rtime, = struct.unpack('<L',data[0:4])
+                    if time.time() - rtime <= MAX_TIMESTAMP_ERROR:
+                        if source_addr not in ts_updated:
+                            print "Device at "+source_addr+" synced."
+                            ts_updated.add(source_addr)
+                            if source_addr in ts_sent_update:
+                                ts_sent_update.pop(source_addr)
+                    else:
+                        if source_addr in ts_updated:
+                            print "Device at "+source_addr+" desynced."
+                            ts_updated.remove(source_addr)
+
+                if xbee_relay_IF.connected():
+                    xbee_relay_IF.publish(source_addr,data)
+                        
+                if ( source_addr not in ts_updated and source_addr not in ts_sent_update  ):
+                    ts_send(source_addr)
+
             else:
                 print "Don't know what to do with frame type=",frame['id']
             
