@@ -3,7 +3,7 @@ import config
 import utils
 
 import serial
-from xbee import XBee, ZigBee
+from xbee.ieee import XBee
 import time,os,sys
 
 (COORDINATOR,ROUTER,END_DEVICE) = range(3)
@@ -42,7 +42,7 @@ MAX_TIMESTAMP_ERROR = int(config.map['xbee_relay']['max_timestamp_error'])
 xbee_frames = []
 def frame_recieved(data):
     global xbee_frames
-    #print "Frame recieved: ",data
+    print "Frame recieved: ",data
     #if ( data.has_key('parameter')):
         #print "Parameter: "+utils.hexify(data['parameter'])
     xbee_frames.append(data)
