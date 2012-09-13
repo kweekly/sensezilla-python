@@ -108,7 +108,7 @@ try:
             elif frame['id'] == 'rx_long_addr':
                 source_addr = utils.hexify(frame['source_addr'])
                 data = frame['rf_data']
-                #print "<"+source_addr+","+utils.hexify(frame['source_addr'])+" : "+utils.hexify(data)
+                print "<"+source_addr+","+utils.hexify(frame['source_addr'])+" : "+utils.hexify(data)
                 children_cache.add(source_addr)
 
                 rtime = 0

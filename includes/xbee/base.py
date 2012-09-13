@@ -78,7 +78,7 @@ class XBeeBase(threading.Thread):
         result to the serial port
         """
         frame = APIFrame(data, self._escaped).output()
-        print "Data out: ",''.join(['%02X'%(ord(i)) for i in frame])
+        #print "Data out: ",''.join(['%02X'%(ord(i)) for i in frame])
         self.serial.write(frame) 
         
     def run(self):
