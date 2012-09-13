@@ -6,14 +6,27 @@ import postgresops
 import uuid
 import os
 
+from smap import core, server, util
+from twisted.python import log
+from twisted.internet import reactor
+import threading
+import sys
+
+#log.startLogging(sys.stdout)
 
 DEFAULT_NEW_DEVICE = config.map['publisher']['default_new_device']
 CREATE_NEW_DEVICE = True if config.map['publisher']['create_new_device'].lower() == 'true' else False
 DEFAULT_NEW_SOURCE = config.map['publisher']['default_new_source']
 
+FLUSH_INTERVAL = float(config.map['publisher']['flush_interval'])
 CACHE_TIMEOUT = 5
 
+SMAP_UUID = config.map['publisher']['smap_UUID']
+SMAP_DATAFILE = config.map['global']['data_dir'] + '/' + 'smap_datafile'
+
 device_cache = {}
+
+smap_instances = {}
 
 def gen_source_ids(device):
     struct = utils.read_source(device.source_name)
@@ -23,7 +36,7 @@ def gen_source_ids(device):
     retval = []
     if driver  == "SMAP":
         for i in range(num):
-            retval.append(uuid.uuid5(source, "%s/%d"%(device.IDstr,i)))
+            retval.append(str(uuid.uuid5(uuid.UUID(SMAP_UUID), str("%s/%d"%(device.IDstr,i)))))
         return retval
     elif driver == "CSV":
         for i in range(num):
@@ -61,6 +74,58 @@ def find_device(id_str, create_new=False, device_type=None, source=None ):
         
     return dev
 
+def publish_smap(source_name,sourcedef,dev,devdef,feednum,devuuid,time,data):
+    if source_name not in smap_instances:
+        if not reactor.running:
+            print "Starting twistd reactor"
+            th = threading.Thread(target=reactor.run)
+            th.daemon = True
+            th.start()
+
+        inst = core.SmapInstance(SMAP_UUID,reportfile=SMAP_DATAFILE)
+        rpt = {
+               'ReportDeliveryLocation' : [sourcedef['url']+'/add/'+sourcedef['apikey']],
+               'ReportResource' : '/+',
+               'uuid' : inst.uuid('report 0')
+        }
+        if not inst.reports.update_report(rpt):
+            inst.reports.add_report(rpt)
+        inst.reports.update_subscriptions()
+        inst.start()
+        smap_instances[source_name] = inst
+    else:
+        inst = smap_instances[source_name]     
+    
+    uuido = uuid.UUID(devuuid)
+    ts = inst.get_timeseries(uuido)
+    if ts == None:
+        ts = inst.add_timeseries('/'+dev.IDstr+'/'+str(devdef['feeds'][feednum]),uuido,devdef['feeds'][feednum],data_type='double',milliseconds=False)
+        smapmeta = {'Instrument/ModelName' : devdef['name'],
+                    'Instrument/DeviceDefinition' : dev.device_type,
+                    'Instrument/ID' : dev.IDstr,
+                    'Instrument/FeedIndex' : str(feednum),
+                    'Instrument/FeedName' : str(devdef['feeds'][feednum]) }
+        locmeta = devicedb.get_devicemetas(where="key='LOCATION' and %d=any(devices)"%dev.ID,limit=1)
+        if len(locmeta) > 0:
+            smapmeta['Location/CurrentLocation'] = locmeta[0].value
+
+        usermeta = devicedb.get_devicemetas(where="key='USER' and %d=any(devices)"%dev.ID,limit=1)
+        if len(usermeta) > 0:
+            usermeta['Extra/User'] = usermeta[0].value
+            
+        inst.set_metadata(uuido, smapmeta)
+    
+    ts.add(time,data)
+
+last_flush = time.time()
+def tick():
+    global last_flush,smap_instances
+    if time.time() - last_flush > FLUSH_INTERVAL:
+       for inst in smap_instances.values():
+           inst.reports.flush()
+
+       last_flush = time.time() 
+
 def publish_data(id_str, time, data, feednum=None, device_type=None, source=None):    
     if not isinstance(data, list):
         data = [data]
@@ -96,7 +161,7 @@ def publish_data(id_str, time, data, feednum=None, device_type=None, source=None
         else:
             source_id = dev.source_ids[feednum[i]]
             if driver == 'SMAP':
-                pass
+                publish_smap(dev.source_name,source_struct,dev,devdef,feednum[i],source_id,time[i],data[i])
             elif driver == 'CSV':
                 fname = source_id
                 if fname[0] != '/':

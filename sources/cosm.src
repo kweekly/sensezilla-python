@@ -1,6 +1,6 @@
 type = TIMESERIES
 driver = COSM
-apikey = YOUR_API_KEY_HERE
+apikey = $(cosm_api_key)
 
 # default units are in "millis" 
 intr = 1000
