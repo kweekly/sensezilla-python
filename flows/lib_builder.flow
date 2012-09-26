@@ -12,11 +12,10 @@ state-detection.cmd = "env LD_LIBRARY_PATH=$(cpp_bin) $(cpp_bin)/transition_chun
 
 tasks @+ insert-state
 insert-state.profile = io_bound
-insert-state.cmd = "python $(bin_dir)/devlibmanager.py insert %{SOURCE} %{ID} %{TIME_FROM} %{TIME_TO} %I0"
+insert-state.cmd = "python $(bin_dir)/learningmanager.py insert %{SOURCE} %{ID} --from %{TIME_FROM} --to %{TIME_TO} %I0"
 
 # connect inputs and outputs
 common-minfilter.I0 = common-fetcher.O0
-libbuilder.I0 = common-minfilter.O0
+state-detection.I0 = common-minfilter.O0
 insert-state.I0 = state-detection.O0
 
-outputs @= state-detection.O0

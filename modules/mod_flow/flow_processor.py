@@ -331,39 +331,42 @@ def read_flow_file(fname):
                 print "ERROR: Couldn't find output "+outspec
                 sys.exit(1)
     
-    index = 0
-    for file in flow.files:
-        if ( file.src.name+'.O%d'%file.index in lmap['outputs'] ):
-            found = True
-            file.dests.append(('OUTPUT',index))
-            flow.outputs.append(file)
-            index += 1
-            break
+    if 'outputs' in lmap:
+        index = 0
+        for file in flow.files:
+            if ( file.src.name+'.O%d'%file.index in lmap['outputs'] ):
+                found = True
+                file.dests.append(('OUTPUT',index))
+                flow.outputs.append(file)
+                index += 1
+                break
     
-    # now prune any steps/files not needed
-    for step in flow.steps:
-        step.mark = False
-    for file in flow.files:
-        file.mark = False
+        # now prune any steps/files not needed
+        for step in flow.steps:
+            step.mark = False
+        for file in flow.files:
+            file.mark = False
     
-    def mark_recursive(file):
-        file.src.mark = True
-        file.mark = True
-        for f in file.src.inputs:
-            mark_recursive(f)
+        def mark_recursive(file):
+            file.src.mark = True
+            file.mark = True
+            for f in file.src.inputs:
+                mark_recursive(f)
     
-    for file in flow.outputs:
-        mark_recursive(file)
+        for file in flow.outputs:
+            mark_recursive(file)
         
-    for step in flow.steps[:]:
-        if not step.mark:
-            print "Pruning step %s: no connection to output"%(step.name)
-            flow.steps.remove(step)
+        for step in flow.steps[:]:
+            if not step.mark:
+                print "Pruning step %s: no connection to output"%(step.name)
+                flow.steps.remove(step)
     
-    for file in flow.files[:]:
-        if not file.mark:
-            print "Pruning file %s.O%d : no connection to output"%(file.src.name,file.index)
-            flow.files.remove(file)
+        for file in flow.files[:]:
+            if not file.mark:
+                print "Pruning file %s.O%d : no connection to output"%(file.src.name,file.index)
+                flow.files.remove(file)
+    else:
+        print "No outputs in flow definition, all tasks are run"
     
     def build_file_dep_str(file):
         return file.src.name+'('+','.join([build_file_dep_str(f) for f in file.src.inputs])+')'

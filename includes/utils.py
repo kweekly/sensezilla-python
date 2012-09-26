@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from datetime import datetime, timedelta
 import time, os, sys
 import config
@@ -121,3 +122,23 @@ def strip0s(str):
             return str[i:]
         i += 1;
     return '\x00'
+    
+def readcsv(fname, strings=False):
+    fin = open(fname,"r");
+    rows = []
+    for line in fin:
+        line = line.lstrip();
+        if ( len(line) == 0 or line[0]=='#'):
+            continue;
+        
+        pts = line.split(',');
+        row = []
+        for pt in pts:
+            if strings:
+                row.append(pt.rstrip().lstrip())
+            else:
+                row.append(float(pt.rstrip().lstrip()))
+        rows.append(row)
+        
+    fin.close();
+    return rows
