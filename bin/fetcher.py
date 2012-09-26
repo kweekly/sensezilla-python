@@ -101,9 +101,6 @@ elif sys.argv[1] == 'fetch':
     devid = sys.argv[3]
     outfile = sys.argv[4]
     
-    if ( devid not in fmap['devices'] ):
-        print "Warning: %s not found in known devices"%devid
-    
     #set up some defaults
     def setdef(name,val):
         if not fmap.has_key(name): fmap[name] = val;

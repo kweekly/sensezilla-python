@@ -6,13 +6,17 @@ use_tmp = 0
 source_types @= TIMESERIES
 tasks @= common-fetcher
 tasks @+ common-minfilter
-tasks @+ libbuilder
-libbuilder.profile = cpu_bound
-libbuilder.cmd = "env LD_LIBRARY_PATH=$(cpp_bin) $(cpp_bin)/library_builder -csvin %I0 -outdir %O0D -outprec 13"
+tasks @+ state-detection
+state-detection.profile = cpu_bound
+state-detection.cmd = "env LD_LIBRARY_PATH=$(cpp_bin) $(cpp_bin)/transition_chunker -csvin %I0 -statesout %O0 -outprec 13"
+
+tasks @+ insert-state
+insert-state.profile = io_bound
+insert-state.cmd = "python $(bin_dir)/devlibmanager.py insert %{SOURCE} %{ID} %{TIME_FROM} %{TIME_TO} %I0"
 
 # connect inputs and outputs
 common-minfilter.I0 = common-fetcher.O0
 libbuilder.I0 = common-minfilter.O0
+insert-state.I0 = state-detection.O0
 
-outputs @= libbuilder.O0
-#outputs @= common-minfilter.O0
+outputs @= state-detection.O0

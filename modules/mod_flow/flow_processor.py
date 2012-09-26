@@ -136,7 +136,7 @@ class FlowDef:
                 ('TIME_FROM',int(utils.date_to_unix(time_from))),
                 ('TIME_TO',int(utils.date_to_unix(time_to))),
                 ('SOURCE',source_name),
-                ('DEVICE',source_id)                
+                ('ID',source_id)                
         ]
         
         for key,val in smap.items():
