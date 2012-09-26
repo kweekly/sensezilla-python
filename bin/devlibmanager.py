@@ -60,7 +60,7 @@ elif (op == 'insert'):
         plugload_name = sys.argv[0];
         state_fname = sys.argv[1];
     else:
-        print "Not enough input arguments";
+        print "Not enough (or too many ) input arguments";
         sys.exit(1);
     
     
