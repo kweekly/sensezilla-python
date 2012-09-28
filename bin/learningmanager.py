@@ -15,7 +15,7 @@ sys.argv = sys.argv[1:]
 
 if ( len(sys.argv) == 0):
     print """
-Usage: devlibmanager.py [insert | list]
+Usage: learningmanager.py [insert | list | genstate]
     list
         Lists devices we know about and their current parameters
     
@@ -34,9 +34,22 @@ Usage: devlibmanager.py [insert | list]
 op = sys.argv.pop(0)
 
 if (op == 'list'):
-    pass
-elif (op == 'insert'):
+    import learningdb,devicedb
+    learningdb.connect()
+    print "Hidden Markov Model w/ Gaussian Emission Parameters"
+    ids = learningdb.getHMMGaussianEmissionIDs()
+    for id in ids:
+        met = devicedb.get_devicemetas(where="id=%d"%id, limit=1)
+        plname = met[0].value
+        entries = learningdb.getHMMGaussianEmissions(id);
+        gparm = learningdb.computeGlobalHMMGaussianParameters(entries);
+        print "\tPlugload \"%s\" Total Learning Sets: %d"%(plname,len(entries))
+        for g in gparm:
+            print "\t\tState %-3d: N=%-7d mean=%20.10e variance=%20.10e"%(g.state_id,g.counts,g.mean,g.variance)
+        print "\n";
     
+    
+elif (op == 'insert'):
     fromtime = None
     totime = None
     dtype = "GHMM"
@@ -75,9 +88,24 @@ elif (op == 'insert'):
         
         dev = device_rows[0]
         chan_index = dev.source_ids.index(sys.argv[1])
-        print "Found device: "+dev.IDstr+" channel %d"%chan_index
         
-        plugload_row = devicedb.get_devicemetas(where="key='PLUGLOAD%d'and %d=any(devices)"%(chan_index,dev.ID), limit=1)
+        devdef = utils.read_device(dev.device_type)
+        if 'plugload_groups' in devdef:
+            plgroups = [int(s) for s in devdef['plugload_groups'].split(',')]
+            
+            tchan = chan_index;
+            pl_index = 0;
+            while ( pl_index < len(plgroups) and tchan >= plgroups[pl_index] ):
+                tchan -= plgroups[pl_index];
+                pl_index += 1;
+                
+            
+        else:
+            pl_index = 0;
+            
+        print "Found device: "+dev.IDstr+" feed %d plugload channel %d"%(chan_index,pl_index)
+        
+        plugload_row = devicedb.get_devicemetas(where="key='PLUGLOAD%d'and %d=any(devices)"%(pl_index,dev.ID), limit=1)
         if( len(plugload_row)==0):
             print "Cannot find plugload metadata for this device";
             sys.exit(1);

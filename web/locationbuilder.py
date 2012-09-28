@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import os
 import sys
 import time
@@ -9,11 +10,12 @@ from jinja2 import *
 def gen_loc_option_list(parent, level, listgen, idstop, idselect):
     return gen_option_list(parent, level, listgen, idstop, idselect,"LOCATION")
 
-def gen_option_list(parent, level, listgen, idstop, idselect,key):
+def gen_option_list(parent, level, listgen, idstop, idselect,key,idselectlist=[]):
     import devicedb
     metadata = devicedb.get_devicemetas(where="key='%s' and parent=%d"%(key,parent), orderby="value ASC")
+    
     for met in metadata:
-        if idselect == met.ID:
+        if idselect == met.ID or met.ID in idselectlist:
             seltex = 'selected="selected"'
         else:
             seltex = ''
@@ -23,7 +25,7 @@ def gen_option_list(parent, level, listgen, idstop, idselect,key):
                 listgen += "<option value=%d"%met.ID+" %s>"%seltex+"-"*level+" "+met.value+"</option>\n";
             else:
                 listgen += "<option value=%d"%met.ID+" %s>"%seltex+"<b>"+met.value+"</b></option>\n";
-            listgen = gen_option_list(met.ID,level+1,listgen,idstop,idselect,key);
+            listgen = gen_option_list(met.ID,level+1,listgen,idstop,idselect,key,idselectlist);
     return listgen
         
 
@@ -359,20 +361,49 @@ def do_locationbuilder(req,environ,start_response):
                 
             for i in range(len(devdef['feeds'])):
                 if ( 'plugload%d'%i in post ):
-                    plugl = devicedb.get_devicemetas(where="key='PLUGLOAD%d' and %d=any(devices)"%(i,dev.ID),limit=1)
-                    if len(plugl)==0 and post['plugload%d'%i].value != '0':
-                        plugl = devicedb.new_devicemeta()
-                        plugl.key = "PLUGLOAD%d"%i
-                        plugl.value = ''
-                        plugl.devices = [dev.ID]
-                        plugl.parent = int(post['plugload%d'%i].value)
-                        devicedb.insert_devicemeta(plugl)
-                    elif len(plugl)==1 and plugl[0].parent != int(post['plugload%d'%i].value):
-                        if post['plugload%d'%i].value == '0':
-                            devicedb.delete_devicemeta(plugl[0].ID)
-                        else:
-                            plugl[0].parent = int(post['plugload%d'%i].value)
-                            devicedb.update_devicemeta(plugl[0])
+                    plval = post['plugload%d'%i].value;
+                    if plval == '1':
+                        if 'plsum%d'%i in post:
+                            pts = post['plsum%d'%i].value.split(',');
+                            plugl = devicedb.get_devicemetas(where="key='PLUGLOAD%d' and %d=any(devices)"%(i,dev.ID),limit=1);
+                            if len(pts) == 1:
+                                if (len(plugl) == 1): devicedb.delete_devicemeta(plugl[0].ID)
+                            elif len(pts) == 2:
+                                plval = pts[0]
+                            else:
+                                ptstr = '';
+                                for pti in range(len(pts)-1):
+                                    ptstr += str(int(pts[pti]));
+                                    if ( pti != len(pts)-2 ):
+                                        ptstr += ','
+                                if ( len(plugl) == 1 ):
+                                    plugl[0].value = ptstr;
+                                    plugl[0].parent = 1;
+                                    devicedb.update_devicemeta(plugl[0]);
+                                else:
+                                    plugl = devicedb.new_devicemeta()
+                                    plugl.key = "PLUGLOAD%d"%i
+                                    plugl.value = ptstr
+                                    plugl.devices = [dev.ID]
+                                    plugl.parent = 1
+                                    devicedb.insert_devicemeta(plugl)                    
+                    
+                    if plval != '1':
+                        plugl = devicedb.get_devicemetas(where="key='PLUGLOAD%d' and %d=any(devices)"%(i,dev.ID),limit=1)
+                        if len(plugl)==0 and plval != '0':
+                            plugl = devicedb.new_devicemeta()
+                            plugl.key = "PLUGLOAD%d"%i
+                            plugl.value = ''
+                            plugl.devices = [dev.ID]
+                            plugl.parent = int(plval)
+                            devicedb.insert_devicemeta(plugl)
+                        elif len(plugl)==1 and plugl[0].parent != int(plval):
+                            if plval == '0':
+                                devicedb.delete_devicemeta(plugl[0].ID)
+                            else:
+                                plugl[0].parent = int(plval)
+                                plugl[0].value = ''
+                                devicedb.update_devicemeta(plugl[0])
           
             curuser = devicedb.get_devicemetas(where="key='USER' and %d=any(devices)"%(dev.ID))
             found = False
@@ -409,17 +440,38 @@ def do_locationbuilder(req,environ,start_response):
             locoptions = gen_loc_option_list(0,0,'',0,curloc[0].ID)
             noloc = False
         
+        if 'plugload_groups' in devdef:
+            plgroups = [int(s) for s in devdef['plugload_groups'].split(',')]
+        else:
+            plgroups = [len(devdef['feeds'])]
         
+        
+        plchecks = [];
         loadsellists = [];
         curloadsels = []
-        for i in range(len(devdef['feeds'])):
+        for i in range(len(plgroups)):
             plugs = devicedb.get_devicemetas(where="key='PLUGLOAD%d' and %d=any(devices)"%(i,dev.ID),limit=1)
+            ilist = []
             if len(plugs)==1:
-                curloadsels.append(plugs[0].parent);
+                if ( plugs[0].parent == 1):
+                    curloadsels.append(1);
+                    ilist = [int(v) for v in plugs[0].value.split(',')]
+                else:
+                    curloadsels.append(plugs[0].parent);
             else:
                 curloadsels.append(0)
 
+            plchecks.append(gen_option_list(0,0,'',0,0,'PLUGLOAD',idselectlist=ilist).replace('\n',''))
             loadsellists.append(gen_option_list(0,0,'',0,curloadsels[-1],'PLUGLOAD'))
+        
+
+        plrowspan = []
+        showpl = []
+        plmap = []
+        for pid in range(len(plgroups)):
+            plrowspan.append(plgroups[pid])
+            plmap.extend([pid]*plgroups[pid]);
+            showpl.extend([True] + [False]*(plgroups[pid]-1))
             
         userlist = []
         def rgenusers(id,userlist):
@@ -455,7 +507,11 @@ def do_locationbuilder(req,environ,start_response):
                                     curloadsels=curloadsels,
                                     userlist=userlist,
                                     curuser=curuser,
-                                    svgdata=svgdata))]
+                                    svgdata=svgdata,
+                                    showpl=showpl,
+                                    plmap=plmap,
+                                    plrowspan=plrowspan, 
+                                    plchecks=plchecks))]
     
     else:
         return [str(template.render())]

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 
 import psycopg2, os, sys
 import config
@@ -54,12 +55,12 @@ def initdb():
 def new_device():
     if connected():
         while True:
-            newint = id_rgen.randint(1, 2**31-1)
+            newint = id_rgen.randint(10, 2**31-1)
             postgresops.dbcur.execute("SELECT id from devices.physical where id=%s limit 1",(newint,))
             if ( postgresops.dbcur.rowcount == None or postgresops.dbcur.rowcount <= 0):
                 break
     else:
-        newint = id_rgen.randint(1, 2**31-1)        
+        newint = id_rgen.randint(10, 2**31-1)        
     
     dev = Device()
     dev.ID = newint
@@ -68,12 +69,12 @@ def new_device():
 def new_devicemeta():
     if connected():
         while True:
-            newint = id_rgen.randint(1, 2**31-1)
+            newint = id_rgen.randint(10, 2**31-1)
             postgresops.dbcur.execute("SELECT id from devices.metadata where id=%s limit 1",(newint,))
             if ( postgresops.dbcur.rowcount == None or postgresops.dbcur.rowcount <= 0):
                 break
     else:
-        newint = id_rgen.randint(1, 2**31-1)        
+        newint = id_rgen.randint(10, 2**31-1)        
     
     dev = DeviceMeta()
     dev.ID = newint

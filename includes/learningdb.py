@@ -45,6 +45,13 @@ class HMMGaussianState:
     def __str__(self):
         return "(ID:%d,Counts:%d,mean:%.2e,variance:%.2e)"%(self.state_id,self.counts,self.mean,self.variance)
 
+def getHMMGaussianEmissionIDs():
+    postgresops.dbcur.execute("SELECT distinct(plugload_id) FROM learning.HMMGaussianEmissions");
+    ret = []
+    for row in postgresops.dbcur:
+        ret.append(row[0]);
+    return ret;
+
 def getHMMGaussianEmissions(plugload_id):
     postgresops.dbcur.execute("SELECT state_ids,counts,means,variances FROM learning.HMMGaussianEmissions WHERE plugload_id=%s ORDER BY data_from DESC",(plugload_id,))
     entries = []
