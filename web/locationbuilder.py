@@ -29,6 +29,19 @@ def gen_option_list(parent, level, listgen, idstop, idselect,key,idselectlist=[]
     return listgen
         
 
+def check_for_alt_feeds(devdef,dev) :
+    import devicedb
+    altfeeds = devicedb.get_devicemetas(where="key like 'ALTFEEDNAME_%%' and %d=any(devices)"%(dev.ID));
+    
+    if len(altfeeds) > 0:
+        al = len('ALTFEEDNAME')
+        altfeeds.sort(key=lambda s:int(s.key[al:]));
+        devdef['feeds'] = ['???']*(int(altfeeds[-1].key[al:])+1)
+        for af in altfeeds: 
+            n = int(af.key[al:])
+            devdef['feeds'][n] = af.value;            
+    
+
 def do_locationbuilder(req,environ,start_response):
     import config 
     import devicedb
@@ -327,6 +340,8 @@ def do_locationbuilder(req,environ,start_response):
             if ( devdeffile == dev.device_type ):
                 devdef = struc
             devdeflist.append(struc['name']);
+        
+        check_for_alt_feeds(devdef,dev);
                     
         if 'action' in d and d['action'][0] == 'edit':
             post = cgi.FieldStorage(fp=environ['wsgi.input'],environ=environ,keep_blank_values=True);
@@ -343,7 +358,6 @@ def do_locationbuilder(req,environ,start_response):
             
             curlocs = devicedb.get_devicemetas(where="key='LOCATION' and %d=any(devices)"%dev.ID)
             
-            
             if ('location' not in post or 'noloc' in post):
                 noloc = True
             else:
@@ -358,7 +372,7 @@ def do_locationbuilder(req,environ,start_response):
                 loc = devicedb.get_devicemetas(where="id=%d"%(int(post['location'].value)),limit=1)
                 loc[0].devices.append(dev.ID)
                 devicedb.update_devicemeta(loc[0])
-                
+
             for i in range(len(devdef['feeds'])):
                 if ( 'plugload%d'%i in post ):
                     plval = post['plugload%d'%i].value;

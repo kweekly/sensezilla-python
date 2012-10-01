@@ -123,12 +123,17 @@ def strip0s(str):
         i += 1;
     return '\x00'
     
-def readcsv(fname, strings=False):
+def readcsv(fname, strings=False, readmeta=False, readheader=False):
     fin = open(fname,"r");
     rows = []
+    meta = []
     for line in fin:
         line = line.lstrip();
-        if ( len(line) == 0 or line[0]=='#'):
+        if ( len(line) == 0):
+            continue;
+            
+        if (line[0] == '#'):
+            meta.append(line[1:])
             continue;
         
         pts = line.split(',');
@@ -141,4 +146,21 @@ def readcsv(fname, strings=False):
         rows.append(row)
         
     fin.close();
-    return rows
+    
+    if not readmeta and not readheader:
+        return rows
+    else:
+        headers = None
+        for m in meta:
+            if m.count(',') == len(rows[0])-1:
+                m = m.lstrip().rstrip()
+                headers = m.split(',');
+                break
+        
+        retv = (rows,)
+        if readmeta:
+            retv += (meta,)
+        if readheader:
+            retv += (headers,)
+        
+        return retv;

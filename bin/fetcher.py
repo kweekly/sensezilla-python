@@ -1,4 +1,5 @@
 #!/usr/bin/python
+# -*- coding: utf-8 -*-
 
 import sys,os, time
 if 'SENSEZILLA_DIR' not in os.environ:
@@ -46,7 +47,10 @@ elif sys.argv[1] == 'list':
                         
                     for idx in range(len(dev.source_ids)):
                         id = dev.source_ids[idx]
-                        print "\t\t%20s : %s"%(devdefs[dev.device_type]['feeds'][idx],id)
+                        if ( idx < len(devdefs[dev.device_type]['feeds']) ):
+                            print "\t\t%20s : %s"%(devdefs[dev.device_type]['feeds'][idx],id)
+                        else:
+                            print "\t\t%20s : %s"%('???',id)
                         
                     print ""
                 

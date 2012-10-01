@@ -28,6 +28,8 @@ Usage: learningmanager.py [insert | list | genstate]
     genstate <output state file> <reverse mapping file> [--plug <plugload name>] [--plug <plugload name>] [<source name> <source id>]
         Generate aggregate state file given plugload names and/or by looking it up via source name and source id
         
+    mapstate <input CSV> <reverse mapping file> <output CSV>
+        Splits an input CSV timeseries (time,aggregate state no) into an output CSV timeseries (time,state1_no,state2_no...)
 """
     sys.exit(0);
     
@@ -50,6 +52,8 @@ if (op == 'list'):
     
     
 elif (op == 'insert'):
+    import devicedb,postgresops
+    devicedb.connect();
     fromtime = None
     totime = None
     dtype = "GHMM"
@@ -75,42 +79,28 @@ elif (op == 'insert'):
     pretend,j,sys.argv = utils.check_arg(sys.argv,'--pretend')
     
     if ( len(sys.argv) == 3 ):
-        import devicedb,postgresops
-        devicedb.connect();
-        
+       
         postgresops.check_evil(sys.argv[0])
         postgresops.check_evil(sys.argv[1])
         
-        device_rows = devicedb.get_devices(where="source_name='%s' and '%s'=any(source_ids)"%(sys.argv[0],sys.argv[1]),limit=1)
-        if ( len(device_rows) == 0 ):
+        sname = sys.argv[0]
+        sid = sys.argv[1]
+        
+        pl_meta,dev,pl_index = devicedb.find_plugload(sname,sid)        
+        if  pl_index == None:
             print "Cannot find device belonging to this source name/id pair"
             sys.exit(1);
-        
-        dev = device_rows[0]
-        chan_index = dev.source_ids.index(sys.argv[1])
-        
-        devdef = utils.read_device(dev.device_type)
-        if 'plugload_groups' in devdef:
-            plgroups = [int(s) for s in devdef['plugload_groups'].split(',')]
-            
-            tchan = chan_index;
-            pl_index = 0;
-            while ( pl_index < len(plgroups) and tchan >= plgroups[pl_index] ):
-                tchan -= plgroups[pl_index];
-                pl_index += 1;
-                
-            
-        else:
-            pl_index = 0;
-            
-        print "Found device: "+dev.IDstr+" feed %d plugload channel %d"%(chan_index,pl_index)
-        
-        plugload_row = devicedb.get_devicemetas(where="key='PLUGLOAD%d'and %d=any(devices)"%(pl_index,dev.ID), limit=1)
-        if( len(plugload_row)==0):
-            print "Cannot find plugload metadata for this device";
+        elif pl_meta == None:
+            print "Cannot find metadata for this plugload (possibly undefined?)"
             sys.exit(1);
-            
-        plugload_row = devicedb.get_devicemetas(where="id=%d"%plugload_row[0].parent,limit=1);
+       
+        print "Found device: "+dev.IDstr+" plugload channel %d"%(pl_index)
+        
+        if (pl_meta.parent == 1):
+            print "Error: Plugload is defined as an aggregate sum of plugloads, cannot learn from this (yet!)"
+            sys.exit(1);
+        
+        plugload_row = devicedb.get_devicemetas(where="id=%d"%pl_meta.parent,limit=1);
         
         plugload_name = plugload_row[0].value
         plugload_id = plugload_row[0].ID
@@ -179,6 +169,37 @@ elif (op == 'genstate'):
     
     if fail: sys.exit(1);
     
+    if ( len(sys.argv) == 4):
+        sid = sys.argv.pop()
+        sname = sys.argv.pop()
+        pl_meta,dev,pl_index = devicedb.find_plugload(sname,sid)        
+        if  pl_index == None:
+            print "Cannot find device belonging to this source name/id pair"
+            sys.exit(1);
+        elif pl_meta == None:
+            print "Cannot find metadata for this plugload (possibly undefined?)"
+            sys.exit(1);
+            
+        if pl_meta.parent == 1:
+            plids = [int(a) for a in pl_meta.value.split(',')]
+            print "Found plugload for "+dev.IDstr+": [",
+            for i in plids:
+                pl_meta = devicedb.get_devicemetas(where="id=%d"%i,limit=1);
+                if len(pl_meta) > 0:
+                    print pl_meta[0].value+",",
+                    plugnames.append(pl_meta[0].value)
+                    plugids.append(i);
+                else:
+                    print "\nError: no metadata entry for id=%d"%i
+                    sys.exit(1);
+                    
+            print "]"
+        else:
+            pl_meta = devicedb.get_devicemetas(where="id=%d"%pl_meta.parent,limit=1);
+            print "Found plugload for "+dev.IDstr+": "+pl_meta[0].value
+            plugnames.append(pl_meta[0].value);
+            plugids.append(pl_meta[0].ID);
+    
     if ( len(sys.argv) != 2 ):
         print "Incorrect number of arguments";
         sys.exit(1);
@@ -203,16 +224,18 @@ elif (op == 'genstate'):
     
     mfid = open(rmap_fname,"w");
     mfid.write("# Reverse state-mapping file\n");
-    mfid.write("# state_no,"+','.join(plugnames)+'\n');
+    mfid.write("# state_no,"+','.join(plugnames)+','+','.join(['%s (mean)'%s for s in plugnames])+','+','.join(['%s (variance)'%s for s in plugnames])+'\n');
     sfid = open(state_fname,"w");
     sfid.write("# State file\n");
     sfid.write("# state_no,count,mean,variance\n");
     for s in range(nStates):
         modulus = 1;
-        mfid.write('%d,'%s);
+        mfid.write('%d'%s);
         cnt_acc = 0;
         mean_acc = 0.;
         var_acc = 0.;
+        mstr = ''
+        vstr = ''
         for i in range(len(plugids)):
             div = modulus;
             modulus *= len(states_list[i]);
@@ -222,14 +245,59 @@ elif (op == 'genstate'):
             mean_acc += st.counts * st.mean;
             var_acc += st.counts * st.variance;
             
-            mfid.write('%d'%plstate);
-            if ( i != len(plugids)-1):
-                mfid.write(',');
-                
+            mfid.write(',%d'%plstate)
+            mstr += ',%.12f'%st.mean
+            vstr += ',%.12f'%st.variance
+            
+        
         mean_acc /= cnt_acc;
         var_acc /= cnt_acc;
         sfid.write("%d,%d,%.15e,%.15e\n"%(s,cnt_acc,mean_acc,var_acc));
-        mfid.write('\n');
+        mfid.write(mstr+vstr+'\n');
         
     mfid.close();
     sfid.close();
+elif op == 'mapstate':
+    if ( len(sys.argv) != 3 ):
+        print "Invalid number of arguments";
+        sys.exit(1);
+    
+    import random, math
+    outcsv = sys.argv.pop()
+    rmap_fname = sys.argv.pop()
+    incsv = sys.argv.pop()
+    
+    mdata,meta,headers = utils.readcsv(rmap_fname, readmeta=True,readheader=True);
+    
+    nDev = (len(mdata[0])-1)/3;
+    
+    if headers == None:
+        headers = [''] + ['Device %d'%(d+1) for d in range(nDev)]
+       
+    print "Read %d states representing %d devices."%(len(mdata),nDev)
+       
+    rmap = {}
+    for row in mdata:
+        rmap[row[0]] = row[1:]
+    
+    idata = utils.readcsv(incsv);
+    print "Read %d data points."%len(idata)
+    
+    fout = open(outcsv,"w");
+    devnames = headers[1:1+nDev];
+    fout.write("# Disaggregated state output file\n");
+    fout.write("# t,"+','.join(['%s (state)'%s for s in devnames])+','+','.join(['%s (est.)'%s for s in devnames])+'\n');
+    
+    for row in idata:
+        if row[1] in rmap:
+            m = rmap[row[1]];
+            est = [random.gauss(m[i+nDev],math.sqrt(m[i+2*nDev])) for i in range(nDev)];
+            fout.write("%.5f,"%row[0] + ','.join(['%d'%i for i in m[0:nDev]]) + ',' + ','.join(['%.12f'%v for v in est]) + '\n')
+        else:
+            print "Error at t=%.2f. State %d not found.\n"%(row[0],row[1])
+            
+        
+    fout.close();
+else:
+    print "Command "+op+" not recognized"
+    sys.exit(1);

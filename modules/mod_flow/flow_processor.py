@@ -1,4 +1,5 @@
 #!/usr/bin/python
+# -*- coding: utf-8 -*-
 
 import sys,os, time
 if 'SENSEZILLA_DIR' not in os.environ:
@@ -11,6 +12,7 @@ import utils
 from datetime import datetime
 import tempfile
 from mod_scheduler import scheduledb
+import shlex
 
 class File:pass
 
@@ -20,7 +22,7 @@ class FlowDef:
     def __init__(self):
         pass
     
-    def run(self, time_from, time_to, source_name=None, source_id=None, pretend=False, use_cache=True, local=False):
+    def run(self, time_from, time_to, source_name=None, source_id=None, pretend=False, use_cache=True, local=False, params=[]):
         if source_id == None and local:
             print "Error: Can only run 'local' test on one stream ( source name & id pair ) at a time"
             sys.exit(1)
@@ -132,21 +134,56 @@ class FlowDef:
 
 
         # generate dictionary of substitutions
-        subs = [
-                ('TIME_FROM',int(utils.date_to_unix(time_from))),
-                ('TIME_TO',int(utils.date_to_unix(time_to))),
-                ('SOURCE',source_name),
-                ('ID',source_id)                
-        ]
+        subs = {
+                'TIME_FROM':int(utils.date_to_unix(time_from)),
+                'TIME_TO':int(utils.date_to_unix(time_to)),
+                'SOURCE':source_name,
+                'ID':source_id                
+        };
+        subs.update(params)
+        
+        try:
+            import devicedb
+            devicedb.connect()
+            plmeta,dev,pl_index = devicedb.find_plugload(source_name,source_id)
+            subs['PLUGLOAD'] = plmeta.value;
+            subs['DEVID'] = dev.ID
+            subs['DEVIDSTR'] = dev.IDstr
+            
+        except Exception,e:
+            print "Cannot contact devicedb "+str(e)
         
         for key,val in smap.items():
             if ( type(val) is str ):
-                subs.append(('SOURCE.'+key,val))
-            
+                subs['SOURCE.'+key] = val;
+        
+        def procsub(s):
+            i = s.find('%{')
+            if i == -1:
+                return s
+            cnt = 0
+            s = s[0:i] + procsub(s[i+2:]);
+            i2 = s.find('}',i)
+            s2 = s[i:i2]
+            repl = '';
+            if ( s2[0] == '?' ):
+                pts = s2.split(':');
+                if ( len(pts) != 3 ):
+                    print "Error parsing flow file ternary statement: "+s2
+                else:
+                    if ( pts[0] == '?' ):
+                        repl = pts[2]
+                    else:
+                        repl = pts[1]
+            elif s2 in subs:
+                repl = str(subs[s2])
+                
+            return s[0:i] + repl + s[i2+1:];
+        
         for step in self.steps:
             cmd = step.cmd;
-            for subk,subv in subs:
-                cmd = cmd.replace('%%{%s}'%subk,str(subv))
+            
+            cmd = procsub(cmd)
             
             # do file subs
             if len(step.outputs) > 0:
@@ -206,8 +243,9 @@ class FlowDef:
                 if not s.done:
                     print "Executing %s\n"%(s.task.command)
                     if not pretend:
-                        if 0 != subprocess.call(s.task.command.split(' ')):
-                            raise Exception("Error running step %s"%s2.name)
+                        if 0 != subprocess.call(shlex.split(s.task.command)):
+                            raise Exception("Error running step %s"%s.name)
+                        
                     s.done = True
             
             for s in self.steps:

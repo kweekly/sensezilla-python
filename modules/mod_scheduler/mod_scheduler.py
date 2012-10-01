@@ -15,6 +15,7 @@ import scheduler_resp_pb2
 import asyncprocess
 import signal
 import psutil
+import shlex
 
 import google.protobuf
 
@@ -146,7 +147,7 @@ def child_start_task(task):
         child_write_out(child,"Couldn't open log file for writing: "+str(msg))
         
     try:
-        child.process = asyncprocess.Popen(task.command.split(' '), stdin=asyncprocess.PIPE, stderr=asyncprocess.PIPE, stdout=asyncprocess.PIPE, bufsize=1, universal_newlines=True);
+        child.process = asyncprocess.Popen(shlex.split(task.command), stdin=asyncprocess.PIPE, stderr=asyncprocess.PIPE, stdout=asyncprocess.PIPE, bufsize=1, universal_newlines=True);
         child.task.pid = child.process.pid
         child.task.status = scheduledb.RUNNING
         child.start_time = datetime.now()

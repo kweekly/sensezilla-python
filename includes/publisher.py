@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import time
 import config
 import utils
@@ -28,9 +29,10 @@ device_cache = {}
 
 smap_instances = {}
 
-def gen_source_ids(device):
+def gen_source_ids(device, devdef=None):
     struct = utils.read_source(device.source_name)
-    devdef = utils.read_device(device.device_type)
+    if not devdef:
+        devdef = utils.read_device(device.device_type)
     num = len(devdef['feeds'])
     driver = struct['driver'];
     retval = []
@@ -46,7 +48,7 @@ def gen_source_ids(device):
         print "ERROR Cannot generate source ID for %s b/c no %s driver"%(device.source_name,driver)
         return []
     
-def find_device(id_str, create_new=False, device_type=None, source=None ):
+def find_device(id_str, create_new=False, device_type=None, source=None, devdef=None ):
     if not devicedb.connected():
         devicedb.connect()
         
@@ -61,13 +63,15 @@ def find_device(id_str, create_new=False, device_type=None, source=None ):
                 dev.device_type = device_type if device_type else DEFAULT_NEW_DEVICE
                 dev.source_name = source if source else DEFAULT_NEW_SOURCE
                 # generate some random places to dump data
-                dev.source_ids = gen_source_ids(dev)
+                dev.source_ids = gen_source_ids(dev,devdef)
                 devicedb.insert_device(dev)
             else:
                 print "Error publishing data : %s is not in devicedb"%id_str
                 return None
         else:
             dev = dev[0]
+            if (len(dev.source_ids) < len(devdef['feeds'])):
+                dev.source_ids = gen_source_ids(dev,devdef)
             
         dev.birth = time.time()
         device_cache[id_str] = dev        
@@ -78,7 +82,7 @@ def publish_smap(source_name,sourcedef,dev,devdef,feednum,devuuid,time,data):
     if source_name not in smap_instances:
         if not reactor.running:
             print "Starting twistd reactor"
-            th = threading.Thread(target=reactor.run)
+            th = threading.Thread(target=lambda: reactor.run(installSignalHandlers=0))
             th.daemon = True
             th.start()
 
@@ -99,6 +103,7 @@ def publish_smap(source_name,sourcedef,dev,devdef,feednum,devuuid,time,data):
     uuido = uuid.UUID(devuuid)
     ts = inst.get_timeseries(uuido)
     if ts == None:
+        print "add ts: "+'/'+dev.IDstr+'/'+str(devdef['feeds'][feednum]);
         ts = inst.add_timeseries('/'+dev.IDstr+'/'+str(devdef['feeds'][feednum]),uuido,devdef['feeds'][feednum],data_type='double',milliseconds=False)
         smapmeta = {'Instrument/ModelName' : devdef['name'],
                     'Instrument/DeviceDefinition' : dev.device_type,
@@ -111,52 +116,83 @@ def publish_smap(source_name,sourcedef,dev,devdef,feednum,devuuid,time,data):
 
         usermeta = devicedb.get_devicemetas(where="key='USER' and %d=any(devices)"%dev.ID,limit=1)
         if len(usermeta) > 0:
-            usermeta['Extra/User'] = usermeta[0].value
+            smapmeta['Extra/User'] = usermeta[0].value
             
         inst.set_metadata(uuido, smapmeta)
     
-    ts.add(time,data)
+    if ( isinstance(time,list) ):
+        for i in range(len(time)):
+            ts.add(time[i],data[i])
+    else:
+        ts.add(time,data)
 
 last_flush = time.time()
 def tick():
-    global last_flush,smap_instances
+    global last_flush
     if time.time() - last_flush > FLUSH_INTERVAL:
-       for inst in smap_instances.values():
-           inst.reports.flush()
+       flush()
 
        last_flush = time.time() 
+       
+def flush(timeout=30):
+    global smap_instances
+    st = time.time()
+    while time.time()-st < timeout:
+        busy = False
+        for inst in smap_instances.values():
+            inst.reports.flush()
+            for sub in inst.reports.subscribers:
+                if sub['Busy']:
+                    busy = True
+                    
+        if not busy:
+            break;
+        
+        time.sleep(1);
+    
 
-def publish_data(id_str, time, data, feednum=None, device_type=None, source=None):    
-    if not isinstance(data, list):
+def publish_data(id_str, time, data, feednum=None, devdef=None, device_type=None, source=None):    
+    # Usage 1: time and data are scalars - one data point, feed # = feednum or 0 if feednum=None
+    # Usage 2: time and data are lists of scalars (time could also be scalar) - one data point per feed, feed #s = feednum (list) or range(total feeds) if feednum=None
+    # Usage 3: time and data are lists of scalars, feednum is a scalar - multiple data points for one feed
+    # Usage 4: time and data are lists of lists of scalars (time could also be list of scalar) - multiple data points per feed, feed #s = feednum(list) or range(total feeds) if feednum=None
+    if not isinstance(data, list): # Usage 1
         data = [data]
         if feednum == None:
             feednum = [0]
         else:
             feednum = [feednum]
-    else:
-        if feednum == None:
+    else:  # Usage 2,3,4
+        if feednum == None: # Usage 2,4
             feednum = range(len(data))
+        elif not isinstance(feednum,list): # usage 3
+            feednum = [feednum]
+            time = [time]
+            data = [data]
     
-    if not isinstance(time,list):
+    if not isinstance(time,list) or (not isinstance(time[0],list) and isinstance(data[0],list)): # Usage 1,2,4
         time = [time]*len(feednum)
         
     if not devicedb.connected():
         devicedb.connect()
     
+    id_str = id_str.replace('/','_');
     postgresops.check_evil(id_str);
-    dev = find_device(id_str, create_new = True)
+    
+    dev = find_device(id_str, create_new = True, device_type=device_type, source=source, devdef=devdef)
 
     if dev == None:
         return;
     
     source_struct = utils.read_source(dev.source_name)
-    devdef = utils.read_device(dev.device_type)
+    if devdef == None:
+        devdef = utils.read_device(dev.device_type)
         
     driver = source_struct['driver']
     for i in range(len(feednum)):
         if feednum[i] >= len(devdef['feeds']):
             print "ERROR cannot publish data for feed %d because it is not defined in the definition for %s"%(feednum[i],dev.source_name)
-        elif dev.source_ids[feednum[i]] == None or dev.source_ids[feednum[i]] == '':
+        elif feednum[i] >= len(dev.source_ids) or dev.source_ids[feednum[i]] == None or dev.source_ids[feednum[i]] == '':
             print "ERROR cannot publish data for feed %d of device %s because it is not defined"%(feednum[i],dev.IDstr)
         else:
             source_id = dev.source_ids[feednum[i]]
@@ -165,8 +201,7 @@ def publish_data(id_str, time, data, feednum=None, device_type=None, source=None
             elif driver == 'CSV':
                 fname = source_id
                 if fname[0] != '/':
-                     fname = source_struct['path'] + '/' + fname
-                
+                    fname = source_struct['path'] + '/' + fname
                 try:
                     parentdir = fname[:fname.rfind('/')]
                     
@@ -176,7 +211,11 @@ def publish_data(id_str, time, data, feednum=None, device_type=None, source=None
                     
                     csvfile = open(fname, "ab")
                     #print "\t",time[i],data[i]
-                    csvfile.write("%.12f,%.12f\n"%(time[i],data[i]))
+                    if isinstance(time[i],list):
+                        for j in range(len(time[i])):
+                            csvfile.write("%.12f,%.12f\n"%(time[i][j],data[i][j]))
+                    else:
+                        csvfile.write("%.12f,%.12f\n"%(time[i],data[i]))
                     csvfile.close()
                 except OSError,e:
                     print "ERROR Cannot publish data to %s because "%(fname),e

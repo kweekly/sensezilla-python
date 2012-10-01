@@ -1,0 +1,32 @@
+#includes common tasks defs such as 'common-fetcher' and 'common-minpeakfilter'
+include "common.inc"
+
+use_tmp = 0
+
+source_types @= TIMESERIES
+tasks @= common-fetcher
+tasks @+ common-minfilter
+tasks @+ hmm-observer
+hmm-observer.profile = cpu_bound
+hmm-observer.cmd = "env LD_LIBRARY_PATH=$(cpp_bin) $(cpp_bin)/HMM_observer -csvin %I0 -csvout %O0 -statesin %I1 -outprec 13"
+
+tasks @+ make-states
+make-states.profile = io_bound
+make-states.cmd = "python $(bin_dir)/learningmanager.py genstate %O0 %O1 %{?%{PLUGS}:%{PLUGS}:%{SOURCE} %{ID}}"
+
+tasks @+ rmap-states
+rmap-states.profile = io_bound
+rmap-states.cmd = "python $(bin_dir)/learningmanager.py mapstate %I0 %I1 %O0"
+
+tasks @+ insert-computation
+insert-computation.profile = cpu_bound
+insert-computation.cmd = "python $(bin_dir)/computationmanager.py add --source %{SOURCE} %{ID} %{DEVIDSTR}_disaggregated %I0"
+
+# connect inputs and outputs
+common-minfilter.I0 = common-fetcher.O0
+hmm-observer.I0 = common-minfilter.O0
+hmm-observer.I1 = make-states.O0
+rmap-states.I0 = hmm-observer.O0
+rmap-states.I1 = make-states.O1
+insert-computation.I0 = rmap-states.O0
+
