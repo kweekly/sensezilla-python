@@ -164,3 +164,52 @@ def readcsv(fname, strings=False, readmeta=False, readheader=False):
             retv += (headers,)
         
         return retv;
+        
+
+# S = X1 + X2 + ...  + XN
+# where X1...XN are gaussian random variables with given means and variances
+# Guess what the values of X1..XN are, given S
+# cachemap should be a dict to be repeatedly given as a cache
+# cachekey should be the same for any pair of the same means and variances
+def compute_ML_gaussiansum_estimates(S,means,variances,cachemap={},cachekey=None):
+    import numpy
+    import numpy.linalg as la
+    
+    nDev = len(means);
+    if nDev == 1:
+        return [S]
+        
+    # see if the matrix Ainv is available
+    if cachekey and cachekey in cachemap and 'A' in cachemap[cachekey]:
+        Ainv = cachemap[cachekey]['Ainv']
+    else:
+        A = numpy.ones((nDev-1,nDev-1)) * -1.0/(variances[nDev-1]);
+        for i in range(nDev-1):
+            A[i,i] -= 1.0/(variances[i]);
+            
+        Ainv = la.inv(A)
+        if cachekey:
+            if cachekey not in cachemap:
+                cachemap[cachekey] = {}
+            cachemap[cachekey]['Ainv'] = Ainv
+            
+    b = numpy.ones((nDev-1,1)) * 1.0/variances[nDev-1] * (S - means[nDev-1]);
+    for i in range(nDev-1):
+        b[i,0] += means[i]/variances[i];
+        
+    x = numpy.dot(Ainv, -b);
+    retv = list(x[:,0]) + [S - numpy.sum(x)];
+    for i in range(len(retv)):
+        if ( retv[i] < 0 ):
+            means.pop(i)
+            variances.pop(i)
+            if cachekey:
+                cachekey = str(cachekey) + 'r' + str(i)
+            retv = compute_ML_gaussiansum_estimates(S,means,variances,cachemap={},cachekey=cachekey);
+            retv.insert(i,0.);
+            return retv
+    
+    return retv;
+    
+def log_prog(step_current,step_total,step_name,step_progress_str):
+    print "PROGRESS STEP %d OF %d \"%s\" %s DONE"%(step_current,step_total,step_name,step_progress_str)

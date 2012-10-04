@@ -17,7 +17,7 @@ Usage: fetcher.py [list | fetch]
 
     list : List available sources and identifiers        
 
-    fetch [--from <time>] [--to <time>] <source name> <device identifier> <output CSV>
+    fetch [--plot fname.png] [--from <time>] [--to <time>] <source name> <device identifier> <output CSV>
         Fetch data to CSV, default 1 day history, or by given times
 """
 elif sys.argv[1] == 'list':
@@ -71,10 +71,9 @@ elif sys.argv[1] == 'fetch':
         
         last_update = time.time()
         if ( download_tot == 0 ):
-            print "PROGRESS STEP 1 OF 1 \"FETCHING URL\" %.2f MB DONE"%(download_done/1e6)
+            utils.log_prog(1,1,"FETCHING URL","%.2f MB"%(download_done/1e6))
         else:
-            print "PROGRESS STEP 1 OF 1 \"FETCHING URL\" %.2f%% DONE"%(100*float(download_done)/download_tot)
-
+            utils.log_prog(1,1,"FETCHING URL","%.2f%%"%(100.*float(download_done)/download_tot))
     
     fromtime = datetime.now() - timedelta(weeks=1)
     totime = datetime.now()
@@ -96,6 +95,13 @@ elif sys.argv[1] == 'fetch':
             print "Bad to time: "+str(msg)
         sys.argv = sys.argv[0:i] + sys.argv[i+2:]
     except ValueError:pass
+    
+    try:
+        i = sys.argv.index('--plot')
+        plotfile = sys.argv[i+1]
+        sys.argv = sys.argv[0:i] + sys.argv[i+2:]
+    except ValueError:
+        plotfile = None
     
     fmap = config.read_struct(config.map['global']['source_dir']+'/'+sys.argv[2]+'.src')
     if fmap == None:
@@ -168,4 +174,10 @@ elif sys.argv[1] == 'fetch':
             os.remove(outfile)
             sys.exit(1)
         fin.close()
+        
+    if plotfile:
+        import shlex,subprocess
+        cmdline = str(config.map['web']['plotcsvcmd'] + '-csvin %s -pngout %s -title "Source:%s ID:%s"'%(outfile,plotfile,sys.argv[2],devid));
+        sys.exit(subprocess.call(shlex.split(cmdline)))
+        
     sys.exit(0)

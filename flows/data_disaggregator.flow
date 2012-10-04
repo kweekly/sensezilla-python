@@ -16,7 +16,7 @@ make-states.cmd = "python $(bin_dir)/learningmanager.py genstate %O0 %O1 %{?%{PL
 
 tasks @+ rmap-states
 rmap-states.profile = io_bound
-rmap-states.cmd = "python $(bin_dir)/learningmanager.py mapstate %I0 %I1 %O0"
+rmap-states.cmd = "python $(bin_dir)/learningmanager.py mapstate %I0 %I1 %O0 --rawdata %I2 --invr %{SOURCE.invr}"
 
 tasks @+ insert-computation
 insert-computation.profile = cpu_bound
@@ -28,5 +28,6 @@ hmm-observer.I0 = common-minfilter.O0
 hmm-observer.I1 = make-states.O0
 rmap-states.I0 = hmm-observer.O0
 rmap-states.I1 = make-states.O1
+rmap-states.I2 = common-fetcher.O0
 insert-computation.I0 = rmap-states.O0
 

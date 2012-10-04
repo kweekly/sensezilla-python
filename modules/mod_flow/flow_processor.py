@@ -63,6 +63,10 @@ class FlowDef:
         
             # prune any tasks that don't need to be run
             for step in self.steps[:]:
+                if ( len(step.outputs) == 0):
+                    print "Step %s will be run b/c it has no outputs"%step.name
+                    continue
+                    
                 canbepruned = True
                 for f in step.outputs:
                     if not f.cached:
@@ -211,7 +215,8 @@ class FlowDef:
             task.status = scheduledb.WAITING_FOR_START
             task.profile_tag = step.profile
             if ofile == None: 
-                task.log_file = '/dev/null'
+                tfile = tempfile.NamedTemporaryFile('w', dir=dir, delete=False)
+                task.log_file = tfile.name+'.log'
             else:
                 task.log_file = ofile.fname+'.log'
             step.task = task
@@ -407,10 +412,10 @@ def read_flow_file(fname):
         print "No outputs in flow definition, all tasks are run"
     
     def build_file_dep_str(file):
-        return file.src.name+'('+','.join([build_file_dep_str(f) for f in file.src.inputs])+')'
+        return file.src.name+'('+','.join([build_file_dep_str(f) for f in file.src.inputs])+')[%d]'%file.index
         
     for file in flow.files:
-        file.stepchain = build_file_dep_str(file)    
+        file.stepchain = build_file_dep_str(file)
     
     if (len(flow.steps) <= 0 ):
         raise Exception("ERROR: No steps left after pruning")    

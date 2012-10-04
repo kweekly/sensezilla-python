@@ -70,7 +70,7 @@ def find_device(id_str, create_new=False, device_type=None, source=None, devdef=
                 return None
         else:
             dev = dev[0]
-            if (len(dev.source_ids) < len(devdef['feeds'])):
+            if (devdef != None and len(dev.source_ids) < len(devdef['feeds'])):
                 dev.source_ids = gen_source_ids(dev,devdef)
             
         dev.birth = time.time()

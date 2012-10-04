@@ -64,7 +64,7 @@ def check_db():
     for task in tasks:
         task.changed = False
         if (task.status == scheduledb.WAITING_FOR_INPUT or (task.status == scheduledb.WAITING_FOR_START and task.start_after <= datetime.now())):
-            if ( len(task.prerequisites) > 0 and scheduledb.count(where=' or '.join(['id = %d'%i for i in task.prerequisites])+' and status != %d'%(scheduledb.DONE)) > 0):
+            if ( len(task.prerequisites) > 0 and scheduledb.count(where='('+' or '.join(['id = %d'%i for i in task.prerequisites])+')'+' and status != %d'%(scheduledb.DONE)) > 0):
                 task.status = scheduledb.WAITING_FOR_INPUT
                 task.changed = True
             else:

@@ -86,6 +86,12 @@ def publish(source, data):
             (timestamp,) = struct.unpack_from('<l',data)
             off += 4
             datapoints = list(unpack_several(data,off,12,'f',endian='<'))
+            for di in range(len(datapoints)):
+                d = datapoints[di]
+                if d > 1e4 or d < -1e4:
+                    print "BIG DATA DETECTED: %.2f INDEX %d : "%(d,di) + ['%02X'%(ord(b)) for b in data]
+                    return;
+                    
             off += 4*12
             publisher.publish_data(source, timestamp, datapoints)
         else:

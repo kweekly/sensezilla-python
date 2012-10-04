@@ -28,8 +28,9 @@ Usage: learningmanager.py [insert | list | genstate]
     genstate <output state file> <reverse mapping file> [--plug <plugload name>] [--plug <plugload name>] [<source name> <source id>]
         Generate aggregate state file given plugload names and/or by looking it up via source name and source id
         
-    mapstate <input CSV> <reverse mapping file> <output CSV>
+    mapstate <input CSV> <reverse mapping file> <output CSV> [--rawdata <raw CSV> --invr <input value ratio>]
         Splits an input CSV timeseries (time,aggregate state no) into an output CSV timeseries (time,state1_no,state2_no...)
+        Estimates the disaggregated values using rawdata file
 """
     sys.exit(0);
     
@@ -258,10 +259,22 @@ elif (op == 'genstate'):
     mfid.close();
     sfid.close();
 elif op == 'mapstate':
+    ret,j,sys.argv = utils.check_arg(sys.argv,'--rawdata',1)
+    if ret:
+        rawfname = j[0]
+    else:
+        rawfname = None
+        
+    ret,j,sys.argv = utils.check_arg(sys.argv,'--invr',1)
+    if ret:
+        invr = float(j[0])
+    else:
+        invr = 1.0
+    
     if ( len(sys.argv) != 3 ):
         print "Invalid number of arguments";
         sys.exit(1);
-    
+        
     import random, math
     outcsv = sys.argv.pop()
     rmap_fname = sys.argv.pop()
@@ -283,15 +296,40 @@ elif op == 'mapstate':
     idata = utils.readcsv(incsv);
     print "Read %d data points."%len(idata)
     
+    if rawfname:
+        rawdata = utils.readcsv(rawfname)
+        if (len(rawdata) != len(idata)):
+            print "Error: len(rawdata) != len(input data)"
+            sys.exit(1)
+            
+        print "Read %d data points of rawdata"%len(rawdata)
+    
     fout = open(outcsv,"w");
     devnames = headers[1:1+nDev];
     fout.write("# Disaggregated state output file\n");
     fout.write("# t,"+','.join(['%s (state)'%s for s in devnames])+','+','.join(['%s (est.)'%s for s in devnames])+'\n');
     
-    for row in idata:
+    cachemap = {}
+    last_log = time.time();
+    for rowi in range(len(idata)):
+        if time.time()-last_log > 2:
+            utils.log_prog(1,1,"Estimate Device Power","%.2f%%"%(100.*rowi/len(idata)))
+            last_log = time.time()
+        
+        row = idata[rowi]
+        if rawfname:
+            raw = rawdata[rowi]
+            
         if row[1] in rmap:
             m = rmap[row[1]];
-            est = [random.gauss(m[i+nDev],math.sqrt(m[i+2*nDev])) for i in range(nDev)];
+            means = [m[i+nDev] for i in range(nDev)]
+            variances = [m[i+2*nDev] for i in range(nDev)]
+            
+            if rawfname:
+                est = utils.compute_ML_gaussiansum_estimates(raw[1]/invr,means,variances,cachemap=cachemap,cachekey=row[1]);
+            else:
+                est = [random.gauss(means[i],sqrt(variances[i])) for i in range(nDev)]
+            
             fout.write("%.5f,"%row[0] + ','.join(['%d'%i for i in m[0:nDev]]) + ',' + ','.join(['%.12f'%v for v in est]) + '\n')
         else:
             print "Error at t=%.2f. State %d not found.\n"%(row[0],row[1])

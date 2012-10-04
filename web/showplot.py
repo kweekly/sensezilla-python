@@ -7,6 +7,9 @@ import cgi
 from jinja2 import * 
 
 import tempfile, subprocess, shlex
+
+import datetime as DT
+
 def do_showplot(environ,start_response):
     import config
     d = cgi.parse_qs(environ['QUERY_STRING'])
@@ -35,6 +38,45 @@ def do_showplot(environ,start_response):
             import traceback
             start_response('500 ERROR',[('Content-Type','text/plain')])
             return ["Exception "+str(exp)+" occured\n",traceback.format_exc()]
+    elif 'source' in d and 'sourceid' in d:
+        import postgresops
+        try :
+            postgresops.connect()
+            postgresops.check_and_create_table(
+                "visualization.cached",
+                (("source","varchar"),
+                 ("sourceid","varchar"),
+                 ("time_from","timestamp"),
+                 ("time_to","timestamp"),
+                 ("filename","varchar"),
+                 ("atime","timestamp"));
+                
+            source = d['source'][0]
+            sourceid = d['sourceid'][0]
+            if 'len' in d:
+                tfrom = DT.now() - DT.timedelta(seconds=int(d['len'][0]))
+            else:
+                tfrom = DT.now() - DT.timedelta(seconds=10*60)
+            
+            tto = DT.now()
+            
+            postgresops.dbcur.execute("SELECT filename FROM visualization.cached WHERE source=%s AND sourceid=%s AND time_from=%s AND time_to=%s LIMIT 1",(source,sourceid,tfrom,tto))
+            if ( postgresops.dbcur.rowcount > 0 ):
+                fname = postgresops.dbcur.fetchone()[0]
+            else: # create the file
+                f = tempfile.NamedTemporaryFile(delete = False)
+                fname = f.name
+                f.close()
+                
+                
+                
+            
+            
+                
+        except Exception,exp:
+            import traceback
+            start_response('500 ERROR',[('Content-Type','text/plain')])
+            return ["Exception "+str(exp)+" occured\n",traceback.format_exc()]        
         
 
 
