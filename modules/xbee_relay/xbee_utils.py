@@ -3,7 +3,7 @@ import config
 import utils
 
 import serial
-from xbee import XBee, ZigBee
+from xbee.ieee import XBee
 import time,os,sys
 
 (COORDINATOR,ROUTER,END_DEVICE) = range(3)

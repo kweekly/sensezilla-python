@@ -19,25 +19,27 @@ import xbee_relay_cmd_pb2
 import xbee_relay_resp_pb2
 
 import serial
-from xbee import XBee, ZigBee
+from xbee.ieee import XBee
 
 import xbee_relay_IF
 from xbee_utils import *
+
+
+BROADCAST_SINK = float(config.map['xbee_relay']['broadcast_sink'])
 
 xbee_relay_IF.connect();
 xbee_relay_IF.register_as_relay();
 
 ser = serial.Serial(SERIAL_PORT,int(config.map['xbee_relay']['serial_speed']))
-xbee = ZigBee(ser, callback=frame_recieved)
+xbee = XBee(ser, callback=frame_recieved)
+
+
  
 init_xbee(ser, xbee);
 
 children_cache = set()
 
-source16_cache = {}
-
 CMD_TIME_SYNC = '\x01';
-
 
 ts_sent_update = {}
 ts_updated = set()
@@ -53,19 +55,14 @@ def ts_send(addr):
 def send_to_xbee(dest, data):
     global children_cache
     
-    if not SEND_ONLY_TO_CACHE or dest in children_cache:
-        if dest in source16_cache:
-	    s16 = source16_cache[dest]
-	else:
-	    s16 = '\xFF\xFE'
-	
-	#print ">"+dest+","+utils.hexify(s16)+" : "+utils.hexify(data)
-        xbee.send('tx',dest_addr_long=utils.unhexify(dest),dest_addr=s16,data=data)
+    if not SEND_ONLY_TO_CACHE or dest in children_cache or dest == '000000000000FFFF':
+        xbee.send('tx_long_addr',dest_addr=utils.unhexify(dest),data=data)
         return True
     else:
         return False
 
 last_sim_send = time.time()
+last_broadcast_sink = time.time()
 
 try:
     while True:
@@ -85,7 +82,7 @@ try:
                             resp.cod = xbee_relay_resp_pb2.XBee_Relay_Resp.ADDRESS_NOT_FOUND
                     elif ( cmd_msg.command == xbee_relay_cmd_pb2.XBee_Relay_Cmd.BROADCAST_TO_XBEE ):
                         if IEEE_BROADCAST:
-                            xbee.send('tx',dest_addr='\xFF\xFF',dest_addr_long='\x00\x00\x00\x00\x00\x00\xFF\xFF',data=cmd_msg.data)
+                            xbee.send('tx_long_addr',dest_addr='\x00\x00\x00\x00\x00\x00\xFF\xFF',data=cmd_msg.data)
                         else:
                             for d in children_cache:
                                 send_to_xbee(d,cmd_msg.data)
@@ -108,11 +105,10 @@ try:
                 pass
             elif frame['id'] == 'tx_status':
                 pass
-            elif frame['id'] == 'rx':
-                source_addr = utils.hexify(frame['source_addr_long'])
-		source16_cache[source_addr] = frame['source_addr']
+            elif frame['id'] == 'rx_long_addr':
+                source_addr = utils.hexify(frame['source_addr'])
                 data = frame['rf_data']
-                #print "<"+source_addr+","+utils.hexify(frame['source_addr'])+" : "+utils.hexify(data)
+                print "<"+source_addr+","+utils.hexify(frame['source_addr'])+" : "+utils.hexify(data)
                 children_cache.add(source_addr)
 
                 rtime = 0
@@ -143,6 +139,10 @@ try:
             if time.time() - stime > MAX_TIMESTAMP_ERROR:
                 ts_send(source)
             
+            
+        if time.time() - last_broadcast_sink > BROADCAST_SINK:
+            ts_send("000000000000FFFF")
+            last_broadcast_sink = time.time()
          # simulation
         #if ( time.time() > last_sim_send + 1 and xbee_relay_IF.connected()):  
         #    xbee_relay_IF.publish("13A20040771205","\x01"*(4*(12+1)))
