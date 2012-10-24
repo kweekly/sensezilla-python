@@ -67,11 +67,7 @@ def do_showplot(environ,start_response):
                 f = tempfile.NamedTemporaryFile(delete = False)
                 fname = f.name
                 f.close()
-                
-                
-                
-            
-            
+                                
                 
         except Exception,exp:
             import traceback

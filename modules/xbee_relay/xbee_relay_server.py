@@ -89,7 +89,7 @@ def publish(source, data):
             for di in range(len(datapoints)):
                 d = datapoints[di]
                 if d > 1e4 or d < -1e4:
-                    print "BIG DATA DETECTED: %.2f INDEX %d : "%(d,di) + ['%02X'%(ord(b)) for b in data]
+                    print "BIG DATA DETECTED: %.2f INDEX %d : "%(d,di) + utils.hexify(data)
                     return;
                     
             off += 4*12

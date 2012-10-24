@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import os
 import sys
 import time
@@ -38,6 +39,9 @@ def application(environ, start_response):
         elif (req == '/flows'):
             from flows import do_flows
             return do_flows(environ,start_response)
+        elif (req == '/qrdata'):
+            from qrdata import do_qrdata
+            return do_qrdata(environ,start_response)
         elif (req == '/showplot'):
             from showplot import do_showplot
             return do_showplot(environ,start_response)
