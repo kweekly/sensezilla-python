@@ -31,7 +31,7 @@ xbee_relay_IF.connect();
 xbee_relay_IF.register_as_relay();
 
 ser = serial.Serial(SERIAL_PORT,int(config.map['xbee_relay']['serial_speed']))
-xbee = XBee(ser, callback=frame_recieved)
+xbee = XBee(ser, callback=frame_recieved, escaped=True)
 
 
  
