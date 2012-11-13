@@ -59,10 +59,6 @@ elif sys.argv[1] == 'list':
 elif sys.argv[1] == 'fetch':
     import pycurl
     
-    if len(sys.argv) != 5 and len(sys.argv) != 7 and len(sys.argv) != 9:
-        print "Not enough arguments"
-        sys.exit(1)
-    
     last_update = 0;
     def progress_cb(download_tot, download_done, upload_tot, upload_done):
         global last_update
@@ -102,6 +98,9 @@ elif sys.argv[1] == 'fetch':
         sys.argv = sys.argv[0:i] + sys.argv[i+2:]
     except ValueError:
         plotfile = None
+    
+    if len(sys.argv) != 5:
+        print "Not enough arguments"
     
     fmap = config.read_struct(config.map['global']['source_dir']+'/'+sys.argv[2]+'.src')
     if fmap == None:

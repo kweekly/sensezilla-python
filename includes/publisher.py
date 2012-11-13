@@ -120,6 +120,7 @@ def publish_smap(source_name,sourcedef,dev,devdef,feednum,devuuid,time,data):
             
         inst.set_metadata(uuido, smapmeta)
     
+    #print time,data
     if ( isinstance(time,list) ):
         for i in range(len(time)):
             ts.add(time[i],data[i])

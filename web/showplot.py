@@ -3,6 +3,7 @@ import sys
 import time
 import psutil
 import cgi 
+import utils
  
 from jinja2 import * 
 
@@ -49,25 +50,46 @@ def do_showplot(environ,start_response):
                  ("time_from","timestamp"),
                  ("time_to","timestamp"),
                  ("filename","varchar"),
-                 ("atime","timestamp"));
+                 ("atime","timestamp")));
                 
             source = d['source'][0]
             sourceid = d['sourceid'][0]
             if 'len' in d:
-                tfrom = DT.now() - DT.timedelta(seconds=int(d['len'][0]))
+                tfrom = DT.datetime.now() - DT.timedelta(seconds=int(d['len'][0]))
             else:
-                tfrom = DT.now() - DT.timedelta(seconds=10*60)
+                tfrom = DT.datetime.now() - DT.timedelta(seconds=10*60)
             
-            tto = DT.now()
+            tto = DT.datetime.now()
             
             postgresops.dbcur.execute("SELECT filename FROM visualization.cached WHERE source=%s AND sourceid=%s AND time_from=%s AND time_to=%s LIMIT 1",(source,sourceid,tfrom,tto))
             if ( postgresops.dbcur.rowcount > 0 ):
                 fname = postgresops.dbcur.fetchone()[0]
-            else: # create the file
+            
+            if (postgresops.dbcur.rowcount==0 or not os.path.exists(fname) or os.path.getsize(fname)==0): # create the file
                 f = tempfile.NamedTemporaryFile(delete = False)
                 fname = f.name
                 f.close()
-                                
+                
+                fcsv = tempfile.NamedTemporaryFile(delete = False)
+                fcsvname = fcsv.name
+                fcsv.close()
+                
+                cmdline = str(config.map['web']['fetchcmd'] + " fetch --plot %s --from %d --to %d %s %s %s"%(fname,utils.date_to_unix(tfrom),utils.date_to_unix(tto),source,sourceid,fcsvname))
+                print cmdline
+                cmds = shlex.split(cmdline)
+                subprocess.call(cmds)
+                
+                if os.path.exists(fcsvname):
+                    os.unlink(fcsvname);
+                    
+                if os.path.getsize(fname) == 0:
+                    raise Exception("Plot file not created. Error plotting?")
+                
+                postgresops.dbcur.execute("INSERT INTO visualization.cached (source,sourceid,time_from,time_to,filename,atime) VALUES (%s,%s,%s,%s,%s,%s)",(source,sourceid,tfrom,tto,fname,DT.datetime.now()))
+                postgresops.dbcon.commit()
+            
+            start_response('200 OK',[('Content-Type','image/png')])
+            return TempFileWrapper(fname);
                 
         except Exception,exp:
             import traceback
