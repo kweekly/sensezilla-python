@@ -81,7 +81,7 @@ def lookupstuff():
                 elif 'current %d'%(dat[2]+1) in feedname.lower():
                     currentuuid = dev.source_ids[feednameidx]
         
-            CODE_LINES[code] = lambda loadstr=loadstr,poweruuid=poweruuid,currentuuid=currentuuid:  ("http://sensezilla.berkeley.edu:7500/showplot?source=sensezilla&sourceid=%s"%poweruuid+";Device(s): "+loadstr + "\n" +
+            CODE_LINES[code] = lambda loadstr=loadstr,poweruuid=poweruuid,currentuuid=currentuuid:  ("http://sensezilla.berkeley.edu:7500/showliveplot?source=sensezilla&sourceid=%s"%poweruuid+";Device(s): "+loadstr + "\n" +
                                         "Wattage: %.2f W"%(get_smap_data(poweruuid)) + "\n" + 
                                         "Amperage: %.2f A"%(get_smap_data(currentuuid)));
                 

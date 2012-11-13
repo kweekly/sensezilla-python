@@ -45,6 +45,9 @@ def application(environ, start_response):
         elif (req == '/showplot'):
             from showplot import do_showplot
             return do_showplot(environ,start_response)
+        elif (req == '/showliveplot'):
+            from showplot import do_showliveplot
+            return do_showliveplot(environ,start_response)
         elif (req.startswith("/locationbuilder")):
             from locationbuilder import do_locationbuilder
             return do_locationbuilder(req,environ,start_response)
