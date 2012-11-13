@@ -40,18 +40,7 @@ def do_showplot(environ,start_response):
             start_response('500 ERROR',[('Content-Type','text/plain')])
             return ["Exception "+str(exp)+" occured\n",traceback.format_exc()]
     elif 'source' in d and 'sourceid' in d:
-        import postgresops
         try :
-            postgresops.connect()
-            postgresops.check_and_create_table(
-                "visualization.cached",
-                (("source","varchar"),
-                 ("sourceid","varchar"),
-                 ("time_from","timestamp"),
-                 ("time_to","timestamp"),
-                 ("filename","varchar"),
-                 ("atime","timestamp")));
-                
             source = d['source'][0]
             sourceid = d['sourceid'][0]
             if 'len' in d:
@@ -60,34 +49,26 @@ def do_showplot(environ,start_response):
                 tfrom = DT.datetime.now() - DT.timedelta(seconds=10*60)
             
             tto = DT.datetime.now()
+  
+            f = tempfile.NamedTemporaryFile(delete = False)
+            fname = f.name
+            f.close()
             
-            postgresops.dbcur.execute("SELECT filename FROM visualization.cached WHERE source=%s AND sourceid=%s AND time_from=%s AND time_to=%s LIMIT 1",(source,sourceid,tfrom,tto))
-            if ( postgresops.dbcur.rowcount > 0 ):
-                fname = postgresops.dbcur.fetchone()[0]
+            fcsv = tempfile.NamedTemporaryFile(delete = False)
+            fcsvname = fcsv.name
+            fcsv.close()
             
-            if (postgresops.dbcur.rowcount==0 or not os.path.exists(fname) or os.path.getsize(fname)==0): # create the file
-                f = tempfile.NamedTemporaryFile(delete = False)
-                fname = f.name
-                f.close()
-                
-                fcsv = tempfile.NamedTemporaryFile(delete = False)
-                fcsvname = fcsv.name
-                fcsv.close()
-                
-                cmdline = str(config.map['web']['fetchcmd'] + " fetch --plot %s --from %d --to %d %s %s %s"%(fname,utils.date_to_unix(tfrom),utils.date_to_unix(tto),source,sourceid,fcsvname))
-                print cmdline
-                cmds = shlex.split(cmdline)
-                subprocess.call(cmds)
-                
-                if os.path.exists(fcsvname):
-                    os.unlink(fcsvname);
-                    
-                if os.path.getsize(fname) == 0:
-                    raise Exception("Plot file not created. Error plotting?")
-                
-                postgresops.dbcur.execute("INSERT INTO visualization.cached (source,sourceid,time_from,time_to,filename,atime) VALUES (%s,%s,%s,%s,%s,%s)",(source,sourceid,tfrom,tto,fname,DT.datetime.now()))
-                postgresops.dbcon.commit()
+            cmdline = str(config.map['web']['fetchcmd'] + " fetch --plot %s --from %d --to %d %s %s %s"%(fname,utils.date_to_unix(tfrom),utils.date_to_unix(tto),source,sourceid,fcsvname))
+            print cmdline
+            cmds = shlex.split(cmdline)
+            subprocess.call(cmds)
             
+            if os.path.exists(fcsvname):
+                os.unlink(fcsvname);
+                
+            if os.path.getsize(fname) == 0:
+                raise Exception("Plot file not created. Error plotting?")
+                           
             start_response('200 OK',[('Content-Type','image/png')])
             return TempFileWrapper(fname);
                 
