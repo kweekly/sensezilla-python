@@ -61,7 +61,7 @@ def do_showplot(environ,start_response):
             if 'len' in d:
                 tfrom = DT.datetime.now() - DT.timedelta(seconds=int(d['len'][0]))
             else:
-                tfrom = DT.datetime.now() - DT.timedelta(seconds=60)
+                tfrom = DT.datetime.now() - DT.timedelta(seconds=60*10)
             
             tto = DT.datetime.now()
   
