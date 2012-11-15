@@ -73,7 +73,12 @@ def do_showplot(environ,start_response):
             fcsvname = fcsv.name
             fcsv.close()
             
-            cmdline = str(config.map['web']['fetchcmd'] + " fetch --plot %s --from %d --to %d %s %s %s"%(fname,utils.date_to_unix(tfrom),utils.date_to_unix(tto),source,sourceid,fcsvname))
+            if 'title' in d:
+                titlearg = "--title \""+d['title'][0]+"\""
+            else:
+                titlearg = ""
+            
+            cmdline = str(config.map['web']['fetchcmd'] + " fetch --plot %s %s --from %d --to %d %s %s %s"%(fname,titlearg,utils.date_to_unix(tfrom),utils.date_to_unix(tto),source,sourceid,fcsvname))
             print cmdline
             cmds = shlex.split(cmdline)
             subprocess.call(cmds)

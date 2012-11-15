@@ -7,6 +7,7 @@ import cgi
 
 from jinja2 import * 
 import httplib
+import urllib
 
 CODES = {
     "d00001" : ("P","0013A2004090FEA4", 0),
@@ -81,7 +82,7 @@ def lookupstuff():
                 elif 'current %d'%(dat[2]+1) in feedname.lower():
                     currentuuid = dev.source_ids[feednameidx]
         
-            CODE_LINES[code] = lambda loadstr=loadstr,poweruuid=poweruuid,currentuuid=currentuuid:  ("http://sensezilla.berkeley.edu:7500/showliveplot?source=sensezilla&sourceid=%s"%poweruuid+";Device(s): "+loadstr + "\n" +
+            CODE_LINES[code] = lambda loadstr=loadstr,poweruuid=poweruuid,currentuuid=currentuuid,dat=dat:  ("http://sensezilla.berkeley.edu:7500/showliveplot?title=%s&source=sensezilla&sourceid=%s"%(urllib.quote("Wattage of Device(s): %s (Instrument:%s Port:%d)"%(loadstr,dat[1],dat[2]+1)),poweruuid)+";Device(s): "+loadstr + "\n" +
                                         "Wattage: %.2f W"%(get_smap_data(poweruuid)) + "\n" + 
                                         "Amperage: %.2f A"%(get_smap_data(currentuuid)));
                 

@@ -99,6 +99,13 @@ elif sys.argv[1] == 'fetch':
     except ValueError:
         plotfile = None
     
+    try:
+        i = sys.argv.index('--title')
+        plottitle = sys.argv[i+1]
+        sys.argv = sys.argv[0:i] + sys.argv[i+2:]
+    except ValueError:
+        plottitle = None
+    
     if len(sys.argv) != 5:
         print "Not enough arguments"
     
@@ -176,7 +183,10 @@ elif sys.argv[1] == 'fetch':
         
     if plotfile:
         import shlex,subprocess
-        cmdline = str(config.map['web']['plotcsvcmd'] + '-csvin %s -pngout %s -title "Source:%s ID:%s"'%(outfile,plotfile,sys.argv[2],devid));
+        if not plottitle:
+            plottitle = "Source:%s ID:%s"%(sys.argv[2],devid)
+            
+        cmdline = str(config.map['web']['plotcsvcmd'] + '-csvin %s -pngout %s -title "%s"'%(outfile,plotfile,plottitle));
         sys.exit(subprocess.call(shlex.split(cmdline)))
         
     sys.exit(0)
