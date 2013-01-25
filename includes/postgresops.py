@@ -8,10 +8,14 @@ import config
 
 def connect():
     global dbcon,dbcur
-    dbcon = psycopg2.connect(database=config.map['postgres']['database'], 
-                            user=config.map['postgres']['user'], 
-                            password=config.map['postgres']['password'])
-    dbcur = dbcon.cursor()  
+    try:
+        dbcon = psycopg2.connect(database=config.map['postgres']['database'], 
+                                user=config.map['postgres']['user'], 
+                                password=config.map['postgres']['password'])
+        dbcur = dbcon.cursor()  
+    except psycopg2.OperationalError, e:
+        import traceback
+        traceback.print_exc();
 
 def connected():
     try:

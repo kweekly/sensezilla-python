@@ -43,9 +43,12 @@ CMD_TIME_SYNC = '\x01';
 
 ts_sent_update = {}
 ts_updated = set()
+ts_noupdate = set()
 
 def ts_send(addr):
-    global ts_sent_update, ts_updated
+    global ts_sent_update, ts_updated, ts_noupdate
+    if addr in ts_noupdate:
+        return;
     print "Sending Timesync message to "+addr
     curtime = time.time();
     send_to_xbee(addr, CMD_TIME_SYNC + struct.pack('<I',int(curtime)) )
@@ -105,14 +108,25 @@ try:
                 pass
             elif frame['id'] == 'tx_status':
                 pass
-            elif frame['id'] == 'rx_long_addr':
-                source_addr = utils.hexify(frame['source_addr'])
-                data = frame['rf_data']
-                print "<"+source_addr+","+utils.hexify(frame['source_addr'])+" : "+utils.hexify(data)
+            elif frame['id'] == 'rx_long_addr' or frame['id'] == 'rx_io_data_long_addr':
+                source_addr = utils.hexify(frame['source_addr_long'])
+                if frame['id'] == 'rx_long_addr':
+                    data = frame['rf_data']
+                else:
+                    tdata = frame['samples']
+                    data = "DIGI/"
+                    for delem in tdata:
+                        print delem
+                        for key,val in delem.iteritems():
+                            data += str(key)+"/"+str(val)+"/"
+                    print "Digi data: "+data
+                    ts_noupdate.add(source_addr)
+                
+                print "<"+source_addr+" : "+utils.hexify(data)
                 children_cache.add(source_addr)
 
                 rtime = 0
-                if len(data) >= 4:
+                if len(data) >= 4 and source_addr not in ts_noupdate:
                     rtime, = struct.unpack('<L',data[0:4])
                     if time.time() - rtime <= MAX_TIMESTAMP_ERROR:
                         if source_addr not in ts_updated:
@@ -130,7 +144,6 @@ try:
                         
                 if ( source_addr not in ts_updated and source_addr not in ts_sent_update  ):
                     ts_send(source_addr)
-
             else:
                 print "Don't know what to do with frame type=",frame['id']
             

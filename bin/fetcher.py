@@ -142,6 +142,28 @@ elif sys.argv[1] == 'fetch':
         intr = float(fmap['intr'])
         cmd = "/usr/bin/perl -w %s %d %d %s %s"%(config.map['global']['bin_dir']+'/csv_merge.pl',intr*utils.date_to_unix(fromtime),intr*utils.date_to_unix(totime),outfile,devid)
         do_cmd_run = True
+    elif (fmap['driver'] == 'YFIND'):
+        import json
+        import tempfile
+        curdate = fromtime
+        tfiles = {}
+        while curdate.day <= totime.day:
+            datestr = "%04d-%02d-%02d"%(curdate.year,curdate.month,curdate.day)
+            url = fmap['url'] + 'api/%s/footfalls.json?apikey=%s&date=%s'%(fmap['venueID'],fmap['apikey'],datestr)
+            fout = tempfile.TemporaryFile(mode='w+')
+            print fout
+            curl.setopt(curl.NOPROGRESS, 0)
+            curl.setopt(curl.PROGRESSFUNCTION, progress_cb)
+            print "Fetching URL: %s"%url
+            curl.setopt(curl.URL, url)
+            curl.setopt(curl.WRITEDATA, fout)
+            curl.perform()
+            tfiles[curdate] = fout
+            curdate += timedelta(days=1);
+            
+        for date,fid in tfiles.iteritems():
+            fid.close()
+        
     else:
         print "No driver for %s"%fmap['driver']
         
