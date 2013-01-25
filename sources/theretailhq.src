@@ -1,0 +1,11 @@
+type = TIMESERIES
+driver = YFIND
+url = https://theretailhq.com/
+apikey = $(retailhq_api_key)
+venueID = $(retailhq_venue_ID)
+
+# default units 
+intr = 1
+invr = 1
+
+ID_string_format = "WiFi MAC Address"
