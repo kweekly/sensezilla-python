@@ -13,12 +13,12 @@ device_timeouts = {}
 def str_to_date(dstr):
     try:
         posix = int(dstr)
-        return datetime.fromtimestamp(posix)
+        return datetime.utcfromtimestamp(posix)
     except ValueError:pass
     
     try:
         if (dstr[0] == '-'):
-            return datetime.now() - str_to_interval(dstr[1:])
+            return datetime.utcnow() - str_to_interval(dstr[1:])
     except ValueError:pass
     
     raise ValueError('Unrecognized date string '+dstr)
@@ -63,7 +63,7 @@ def date_to_str(dat):
     return dat.strftime('%m/%d/%Y %H:%M:%S')
     
 def date_to_unix(dat):
-    return time.mktime(dat.timetuple())
+    return time.mktime(dat.utctimetuple())
 
 def list_sources():
     ret = []

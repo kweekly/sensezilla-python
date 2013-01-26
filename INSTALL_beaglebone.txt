@@ -19,7 +19,7 @@ Setup protobuf:
     cd python
     python setup.py install
     
-Setup UART1:
+Setup UART1 (automatically done by code):
     http://www.gigamegablog.com/2012/01/22/beaglebone-coding-101-using-the-serial-and-analog-pins/
     
 Disable unneeded services:
@@ -32,6 +32,9 @@ systemctl disable gdm.service
 
 Setup sensezilla:
 
+cd messages
+protoc --python_out=. *.proto
+
 vim /etc/profile.d/sensezilla.sh
 
 SENSEZILLA_MISSION=beagleboard
@@ -40,3 +43,23 @@ export SENSEZILLA_MISSION
 export SENSEZILLA_DIR
 PATH="$SENSEZILLA_DIR/bin:$PATH"
 
+
+vim conf/local.conf
+[xbee_relay]
+network_key = <key>
+
+
+Set to start on startup:
+
+transfer sensezilla_initd to /etc/init.d/sensezilla
+update-rc.d sensezilla defaults
+
+
+Set the password:
+
+passwd
+
+Set the hostname:
+
+vim /etc/hostname
+hostname <name>

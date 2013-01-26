@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-import sys,os, time
+import sys,os, time, os.path, shutil
 if 'SENSEZILLA_DIR' not in os.environ:
     print "Note: SENSEZILLA_DIR not provided. Assuming ../"
     os.environ['SENSEZILLA_DIR'] = ".."
@@ -71,8 +71,8 @@ elif sys.argv[1] == 'fetch':
         else:
             utils.log_prog(1,1,"FETCHING URL","%.2f%%"%(100.*float(download_done)/download_tot))
     
-    fromtime = datetime.now() - timedelta(weeks=1)
-    totime = datetime.now()
+    fromtime = datetime.utcnow() - timedelta(weeks=1)
+    totime = datetime.utcnow()
     
     try:
         i = sys.argv.index('--from')
@@ -109,7 +109,8 @@ elif sys.argv[1] == 'fetch':
     if len(sys.argv) != 5:
         print "Not enough arguments"
     
-    fmap = config.read_struct(config.map['global']['source_dir']+'/'+sys.argv[2]+'.src')
+    source_name = sys.argv[2]
+    fmap = config.read_struct(config.map['global']['source_dir']+'/'+source_name+'.src')
     if fmap == None:
         print "Couldn't load source description file"
         sys.exit(1);
@@ -143,26 +144,70 @@ elif sys.argv[1] == 'fetch':
         cmd = "/usr/bin/perl -w %s %d %d %s %s"%(config.map['global']['bin_dir']+'/csv_merge.pl',intr*utils.date_to_unix(fromtime),intr*utils.date_to_unix(totime),outfile,devid)
         do_cmd_run = True
     elif (fmap['driver'] == 'YFIND'):
-        import json
-        import tempfile
+        import json, tempfile
+        cache_dir = config.map['global']['data_dir']+'/'+source_name+'_cache'
+        try:
+            os.makedirs(cache_dir,0700)
+        except:pass
+        
         curdate = fromtime
-        tfiles = {}
+        datfout = tempfile.NamedTemporaryFile()
+        if ( devid == 'ALL' ):
+            datfout.write("#yFind Localization System Data\n#Source: %s\n#All MAC Addresses\n"%source_name)
+            datfout.write("#%9s, %16s, %5s, %10s, %10s\n"%('ts','MAC Addr','Floor','X','Y'))
+        else:
+            datfout.write("#yFind Localization System Data\n#Source: %s\n#MAC Address: %s\n"%(source_name,devid))
+            datfout.write("#%9s, %5s, %10s, %10s\n"%('ts','Floor','X','Y'))
+        
         while curdate.day <= totime.day:
             datestr = "%04d-%02d-%02d"%(curdate.year,curdate.month,curdate.day)
-            url = fmap['url'] + 'api/%s/footfalls.json?apikey=%s&date=%s'%(fmap['venueID'],fmap['apikey'],datestr)
-            fout = tempfile.TemporaryFile(mode='w+')
-            print fout
-            curl.setopt(curl.NOPROGRESS, 0)
-            curl.setopt(curl.PROGRESSFUNCTION, progress_cb)
-            print "Fetching URL: %s"%url
-            curl.setopt(curl.URL, url)
-            curl.setopt(curl.WRITEDATA, fout)
-            curl.perform()
-            tfiles[curdate] = fout
+            url = fmap['url'] + 'api/%s/footfalls.json?api_key=%s&date=%s'%(fmap['venueID'],fmap['apikey'],datestr)
+            cache_fname = cache_dir + '/yfind_footfall_' + datestr + '.csv';
+            if os.path.exists(cache_fname) and datetime.utcnow().date() != curdate.date():
+                print "Date %s already exists in cache, skip fetch"%datestr
+            else:
+                fout = tempfile.TemporaryFile();
+                curl.setopt(curl.NOPROGRESS, 0)
+                curl.setopt(curl.PROGRESSFUNCTION, progress_cb)
+                print "Fetching URL: %s"%url
+                curl.setopt(curl.URL, url)
+                curl.setopt(curl.WRITEDATA, fout)
+                curl.perform()
+                fout.seek(0)
+                js = json.load(fout)                
+                fout.close()
+                
+                fout = open(cache_fname,'w');
+                fout.write("#%9s, %16s, %5s, %10s, %10s\n"%('ts','MAC Addr','Floor','X','Y'))
+                for j in js:
+                    ts = datetime.strptime(j['timestamp'][0:-6], "%Y-%m-%dT%H:%M:%S")
+                    tzoffset = int(j['timestamp'][-6:-3])
+                    ts += timedelta(hours=tzoffset)
+                    datline = "%10d, %16s, %5d, %10.2f, %10.2f\n"%(utils.date_to_unix(ts), j['mac'], j['floor_number'], j['x'], j['y']);
+                    fout.write(datline);
+                fout.close();
+                
             curdate += timedelta(days=1);
             
-        for date,fid in tfiles.iteritems():
-            fid.close()
+            fin = open(cache_fname, 'r')
+            ftime = utils.date_to_unix(fromtime)
+            ttime = utils.date_to_unix(totime)
+            for l in fin:
+                if ',' in l and not l[0] == '#':
+                    pts = l.split(',')
+                    ts = int(pts[0].strip())
+                    if ts >= ftime and ts <= ttime:
+                        if devid == "ALL":
+                            datfout.write(l);
+                        elif pts[1].strip() == devid:
+                            datfout.write("%s,%s,%s,%s"%(pts[0],pts[2],pts[3],pts[4]))
+                        
+                    
+            fin.close()
+        
+        datfout.delete = False
+        datfout.close()
+        shutil.move(datfout.name, outfile);
         
     else:
         print "No driver for %s"%fmap['driver']
@@ -183,7 +228,7 @@ elif sys.argv[1] == 'fetch':
         print "Calling "+cmd
         ret = subprocess.call(cmd.split(' '))
         if ( ret != 0 ):
-            print "Error calling csv_merge.pl"
+            print "Error in command"
             os.remove(outfile)
             sys.exit(1)
     
