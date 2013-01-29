@@ -109,7 +109,7 @@ try:
             elif frame['id'] == 'tx_status':
                 pass
             elif frame['id'] == 'rx_long_addr' or frame['id'] == 'rx_io_data_long_addr':
-                source_addr = utils.hexify(frame['source_addr_long'])
+                source_addr = utils.hexify(frame['source_addr'])
                 if frame['id'] == 'rx_long_addr':
                     data = frame['rf_data']
                 else:
@@ -122,7 +122,7 @@ try:
                     print "Digi data: "+data
                     ts_noupdate.add(source_addr)
                 
-                print "<"+source_addr+" : "+utils.hexify(data)
+                #print "<"+source_addr+" : "+utils.hexify(data)
                 children_cache.add(source_addr)
 
                 rtime = 0
