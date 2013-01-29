@@ -1,0 +1,10 @@
+name = "Particulate Matter Sensor PPD60PV-T2 (XBee)"
+ID_string_format = "64-bit Device Address"
+
+svgfile = "$(device_dir)/unknown.svg"
+
+feeds @= "% Dust Detected"
+feeds @+ "0.5um pcs per 283ml"
+
+calibration_lpot = "0,0.05,0.10,0.15,0.2,0.25,0.30"
+calibration_conc = "0,1500,4000,7000,10000,14000,20000"

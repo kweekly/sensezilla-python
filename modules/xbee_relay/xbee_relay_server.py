@@ -69,7 +69,7 @@ def unpack_several(data, offset=0, numfields=1, datatype='l', endian='<'):
     
 
 def publish(source, data):
-    #print "Publish from %s data %s"%(source,utils.hexify(data))
+    print "Publish from %s data %s"%(source,utils.hexify(data))
     if len(data) == 4*(1+12):
         guess_device = 'powerstripv1'
     else:
@@ -82,6 +82,8 @@ def publish(source, data):
 
     try: 
         if dev.device_type == 'powerstripv1':
+            if len(data) != 4*(1+12):
+                return
             off = 0
             (timestamp,) = struct.unpack_from('<l',data)
             off += 4
@@ -94,6 +96,29 @@ def publish(source, data):
                     
             off += 4*12
             publisher.publish_data(source, timestamp, datapoints)
+        elif dev.device_type == 'ppdsensorv1':
+            if len(data) != 4*(1+2):
+                return
+            off = 0
+            (timestamp,) = struct.unpack_from('<l',data)
+            off += 4
+            datapoints = list(unpack_several(data,off,2,'l',endian='<'))
+            duty_cycle = (datapoints[0])/float(datapoints[0] + datapoints[1])
+            devdef = utils.read_device(dev.device_type);
+            call = [float(a) for a in (devdef['calibration_lpot'].split(','))];
+            calc = [float(a) for a in (devdef['calibration_conc'].split(','))];
+            if duty_cycle <= 0:
+                conc = float(0)
+            elif duty_cycle >= call[-1]:
+                conc = calc[-1]
+            else:
+                for i in range(0,len(call)-1):
+                    if ( duty_cycle >= call[i] and duty_cycle < call[i+1] ):
+                        pct = (duty_cycle - call[i])/(call[i+1] - call[i])
+                        conc = pct * calc[i+1] + (1-pct) * calc[i];
+                        break
+
+            publisher.publish_data(source, timestamp, [100.0*duty_cycle,conc])
         else:
             print "Device type %s not recognized by xbee server"%dev.device_type
     except struct.error, emsg:
