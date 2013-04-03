@@ -1,0 +1,16 @@
+name = "Dust Environmental Sensor (XBee)"
+ID_string_format = "64-bit Device Address"
+
+svgfile = "$(device_dir)/unknown.svg"
+
+feeds @= "Humidity (RH%)"
+feeds @+ "Temperature (deg C)"
+feeds @+ "Occupancy (%)"
+feeds @+ "Light (lux)"
+feeds @+ "Accel X (g)"
+feeds @+ "Accel Y (g)"
+feeds @+ "Accel Z (g)"
+feeds @+ "Gyro X (dpm)"
+feeds @+ "Gyro Y (dpm)"
+feeds @+ "Gyro Z (dpm)"
+

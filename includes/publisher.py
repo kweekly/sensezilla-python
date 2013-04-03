@@ -54,7 +54,10 @@ def find_device(id_str, create_new=False, device_type=None, source=None, devdef=
         
     if id_str in device_cache and time.time() < device_cache[id_str].birth + CACHE_TIMEOUT:
         dev = device_cache[id_str]
-    else:  
+        devdef = utils.read_device(dev.device_type);
+        if (devdef != None and len(dev.source_ids) < len(devdef['feeds'])):
+            dev.source_ids = gen_source_ids(dev,devdef)
+    else:
         dev = devicedb.get_devices(where="idstr='%s'"%id_str,limit=1)
         if (len(dev) == 0):
             if CREATE_NEW_DEVICE and create_new:
@@ -70,6 +73,7 @@ def find_device(id_str, create_new=False, device_type=None, source=None, devdef=
                 return None
         else:
             dev = dev[0]
+            devdef = utils.read_device(dev.device_type);
             if (devdef != None and len(dev.source_ids) < len(devdef['feeds'])):
                 dev.source_ids = gen_source_ids(dev,devdef)
             
