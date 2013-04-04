@@ -72,7 +72,7 @@ def publish(source, data):
     print "Publish from %s data %s"%(source,utils.hexify(data))
     if len(data) == 4*(1+12):
         guess_device = 'powerstripv1'
-    elif len(data) == 46:
+    elif len(data) >= 34:
         guess_device = 'envsensorv1'
     else:
         guess_device = None
