@@ -16,6 +16,12 @@ CODES = {
     "d00004" : ("P","0013A2004090FEA4", 3),
     "d00005" : ("C","00:12:6d:45:50:7f:77:4b_disaggregated", 3),
     "d00006" : ("C","00:12:6d:45:50:7f:77:4b_disaggregated", 4),
+    "d00007" : ("R",{
+                        "humidity":     "0013A2004090D79C",
+                        "temperature":  "0013A2004090D79C",
+                        "occupancy":    "0013A2004090D791",
+                        "light":        "0013A2004090D79C"
+                    })
  };
 
 CODE_LINES = {}
@@ -51,7 +57,8 @@ def lookupstuff():
         if dat[0] == "P":
             dev = devicedb.get_devices(where="idstr='%s'"%dat[1],limit=1);
             if len(dev) != 1:
-                return lambda:"ERROR: Can't find device";
+                CODE_LINES[code] = lambda:"ERROR: Can't find device";
+                return;
             dev = dev[0]
             # get plug load names
             metas = devicedb.get_devicemetas(where="key like 'PLUGLOAD%d' and %d=any(devices)"%(dat[2],dev.ID),limit=1);
@@ -85,6 +92,26 @@ def lookupstuff():
             CODE_LINES[code] = lambda loadstr=loadstr,poweruuid=poweruuid,currentuuid=currentuuid,dat=dat:  ("http://sensezilla.berkeley.edu:7500/showliveplot?title=%s&source=sensezilla&sourceid=%s"%(urllib.quote("Wattage of Device(s): %s (Instrument:%s Port:%d)"%(loadstr,dat[1],dat[2]+1)),poweruuid)+";Device(s): "+loadstr + "\n" +
                                         "Wattage: %.2f W"%(get_smap_data(poweruuid)) + "\n" + 
                                         "Amperage: %.2f A"%(get_smap_data(currentuuid)));
+                
+        elif dat[0] == "R":
+            devs = {}
+            for t,v in dat[1].iteritems():
+                dev = devicedb.get_devices(where="idstr='%s'"%v,limit=1);
+                if len(dev) != 1:
+                    CODE_LINES[code] = lambda:"ERROR: Can't find device %s"%v;
+                    return;
+                devs[t] = dev[0]
+            
+            occuuid   = devs['occupancy'].source_ids[2];
+            humiduuid = devs['humidity'].source_ids[0];
+            tempuuid  = devs['temperature'].source_ids[1];
+            lightuuid = devs['light'].source_ids[3];
+            
+            CODE_LINES[code] = lambda occuuid=occuuid,humiduuid=humiduuid,tempuuid=tempuuid,lightuuid=lightuuid:  ("http://sensezilla.berkeley.edu:7500/showliveplot?title=%s&source=sensezilla&sourceid=%s"%(urllib.quote("Occupancy of room"),occuuid)+";"+
+                                        "Occupancy: %.1f %%"%(get_smap_data(occuuid)) + "\n" +
+                                        "Humidity: %.1f %%RH"%(get_smap_data(humiduuid)) + "\n" + 
+                                        "Temperature: %.1f C"%(get_smap_data(tempuuid))  + "\n" +
+                                        "Light Level: %.1f ulux"%(1.0e6*get_smap_data(lightuuid)));
                 
         else:
             CODE_LINES[code] = lambda:"NOT IMPLEMENTED"

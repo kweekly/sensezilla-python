@@ -72,6 +72,8 @@ def publish(source, data):
     print "Publish from %s data %s"%(source,utils.hexify(data))
     if len(data) == 4*(1+12):
         guess_device = 'powerstripv1'
+    elif len(data) >= 34:
+        guess_device = 'envsensorv1'
     else:
         guess_device = None
     
@@ -119,6 +121,26 @@ def publish(source, data):
                         break
 
             publisher.publish_data(source, timestamp, [100.0*duty_cycle,conc])
+        elif dev.device_type == 'envsensorv1':
+            off = 0
+            (timestamp,fmask) = struct.unpack_from('<lH',data)
+            off += 6
+            feedids = [];
+            if fmask & 0x01:
+                feedids += [0]
+            if fmask & 0x02:
+                feedids += [1]
+            if fmask & 0x04:
+                feedids += [2]
+            if fmask & 0x08:
+                feedids += [3]
+            if fmask & 0x10:
+                feedids += [4,5,6]
+            if fmask & 0x20:
+                feedids += [7,8,9]
+            
+            datapoints = list(unpack_several(data,off,len(feedids),'f',endian='<'))            
+            publisher.publish_data(source, timestamp, datapoints, feednum=feedids);
         else:
             print "Device type %s not recognized by xbee server"%dev.device_type
     except struct.error, emsg:
