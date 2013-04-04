@@ -104,6 +104,7 @@ try:
         # process connection w/ XBee
         while len(xbee_frames) > 0:
             frame = xbee_frames.pop();
+            #print "FRAME "+frame['id']
             if frame['id'] == 'at_response':
                 pass
             elif frame['id'] == 'tx_status':
@@ -122,7 +123,7 @@ try:
                     print "Digi data: "+data
                     ts_noupdate.add(source_addr)
                 
-                #print "<"+source_addr+" : "+utils.hexify(data)
+                print "<"+source_addr+" : "+utils.hexify(data)
                 children_cache.add(source_addr)
 
                 rtime = 0
