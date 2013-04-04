@@ -71,8 +71,9 @@ elif sys.argv[1] == 'fetch':
         else:
             utils.log_prog(1,1,"FETCHING URL","%.2f%%"%(100.*float(download_done)/download_tot))
     
-    fromtime = datetime.utcnow() - timedelta(weeks=1)
-    totime = datetime.utcnow()
+    fromtime = datetime.now() - timedelta(weeks=1)
+    totime = datetime.now()
+    
     
     try:
         i = sys.argv.index('--from')
@@ -159,7 +160,7 @@ elif sys.argv[1] == 'fetch':
             datfout.write("#yFind Localization System Data\n#Source: %s\n#MAC Address: %s\n"%(source_name,devid))
             datfout.write("#%9s, %5s, %10s, %10s\n"%('ts','Floor','X','Y'))
         
-        while curdate.day <= totime.day:
+        while curdate.day <= totime.day or curdate.month < totime.month or curdate.year < totime.year:
             datestr = "%04d-%02d-%02d"%(curdate.year,curdate.month,curdate.day)
             url = fmap['url'] + 'api/%s/footfalls.json?api_key=%s&date=%s'%(fmap['venueID'],fmap['apikey'],datestr)
             cache_fname = cache_dir + '/yfind_footfall_' + datestr + '.csv';
@@ -171,7 +172,7 @@ elif sys.argv[1] == 'fetch':
                 curl.setopt(curl.PROGRESSFUNCTION, progress_cb)
                 print "Fetching URL: %s"%url
                 curl.setopt(curl.URL, url)
-                curl.setopt(curl.WRITEDATA, fout)
+                curl.setopt(curl.WRITEFUNCTION, fout.write)
                 curl.perform()
                 fout.seek(0)
                 js = json.load(fout)                
