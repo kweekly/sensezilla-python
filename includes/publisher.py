@@ -31,7 +31,7 @@ smap_instances = {}
 
 def gen_source_ids(device, devdef=None):
     struct = utils.read_source(device.source_name)
-
+    
     num = len(device.feed_names)
     driver = struct['driver'];
     retval = []
@@ -46,37 +46,43 @@ def gen_source_ids(device, devdef=None):
     else:
         print "ERROR Cannot generate source ID for %s b/c no %s driver"%(device.source_name,driver)
         return []
+        
+def check_source_ids(dev):        
+    if ('' in dev.source_ids or len(dev.source_ids) < len(dev.feed_names)):
+        dev.source_ids = gen_source_ids(dev)
+        devicedb.update_device(dev)
     
-def find_device(id_str, create_new=False, device_type=None, source=None, devdef=None ):
+def find_device(id_str, create_new=False, device_type=None, source=None, devdef=None, dev=None ):
     if not devicedb.connected():
         devicedb.connect()
-        
+    
     if id_str in device_cache and time.time() < device_cache[id_str].birth + CACHE_TIMEOUT:
         dev = device_cache[id_str]
-        devdef = utils.read_device(dev.device_type);
-        if (devdef != None and len(dev.source_ids) < len(dev.feed_names)):
-            dev.source_ids = gen_source_ids(dev,devdef)
     else:
-        dev = devicedb.get_devices(where="idstr='%s'"%id_str,limit=1)
-        if (len(dev) == 0):
-            if CREATE_NEW_DEVICE and create_new:
-                dev = devicedb.new_device()
-                dev.IDstr = id_str
-                dev.device_type = device_type if device_type else DEFAULT_NEW_DEVICE
-                dev.source_name = source if source else DEFAULT_NEW_SOURCE
-                # generate some random places to dump data
-                dev.source_ids = gen_source_ids(dev,devdef)
-                devicedb.insert_device(dev)
+        if not dev:
+            devfind = devicedb.get_devices(where="idstr='%s'"%id_str,limit=1)
+            if (len(devfind) == 0):
+                if CREATE_NEW_DEVICE and create_new:
+                    dev = devicedb.new_device()
+                    dev.IDstr = id_str
+                    dev.device_type = device_type if device_type else DEFAULT_NEW_DEVICE
+                    dev.source_name = source if source else DEFAULT_NEW_SOURCE
+                    # generate some random places to dump data
+                    dev.source_ids = gen_source_ids(dev,devdef)
+                    devicedb.insert_device(dev)
+                else:
+                    print "Error publishing data : %s is not in devicedb"%id_str
+                    return None
             else:
-                print "Error publishing data : %s is not in devicedb"%id_str
-                return None
-        else:
-            dev = dev[0]
-            if ( len(dev.source_ids) < len(dev.feed_names)):
-                dev.source_ids = gen_source_ids(dev)
+                dev = devfind[0]
+                
+                    
             
         dev.birth = time.time()
         device_cache[id_str] = dev        
+    
+    if create_new:
+        check_source_ids(dev)
         
     return dev
 
@@ -154,7 +160,7 @@ def flush(timeout=30):
         time.sleep(1);
     
 
-def publish_data(id_str, time, data, feednum=None, devdef=None, device_type=None, source=None):    
+def publish_data(id_str, time, data, feednum=None, devdef=None, device_type=None, source=None, dev=None):    
     # Usage 1: time and data are scalars - one data point, feed # = feednum or 0 if feednum=None
     # Usage 2: time and data are lists of scalars (time could also be scalar) - one data point per feed, feed #s = feednum (list) or range(total feeds) if feednum=None
     # Usage 3: time and data are lists of scalars, feednum is a scalar - multiple data points for one feed
@@ -182,8 +188,8 @@ def publish_data(id_str, time, data, feednum=None, devdef=None, device_type=None
     id_str = id_str.replace('/','_');
     postgresops.check_evil(id_str);
     
-    dev = find_device(id_str, create_new = True, device_type=device_type, source=source, devdef=devdef)
-
+    dev = find_device(id_str, create_new = True, device_type=device_type, source=source, devdef=devdef, dev=dev)
+    
     if dev == None:
         return;
     

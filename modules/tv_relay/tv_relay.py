@@ -162,19 +162,32 @@ def publish_data( keyvals, msg_dbg=''):
                 ts = utils.date_to_unix(utils.str_to_date(keyvals['timestamp']))
                 datapoints = []
                 feednums = []
-                for key,val in keyvals:
-                    if key in devdef.feed_names:
-                        idx = devdef.feed_names.index(key)
-                        feednums.append(idx)
-                        datapoints.append(val)
-                    else:
-                        feednums.append(len(devdef.feed_names))
-                        datapoints.append(val)
-                        
-                        devdef.feed_names.append(key)
                 
-                if (len(datapoints) > 0):
-                    publisher.publish_data( device_id, ts, datapoints, feednum=feednums, devdef=devdef, device_type=driver)
+                for key,val in keyvals.iteritems():
+                    if key in ['driver','device_id','timestamp']:
+                        continue
+                        
+                    try:
+                        f = float(val);
+                    except:
+                        print "Skipping Key-Value pair",key,"/",val,"as it is non-numeric"
+                        continue;
+                        
+                    if key in dev.feed_names:
+                        idx = dev.feed_names.index(key)
+                        feednums.append(idx)
+                        datapoints.append(f)
+                    else:
+                        feednums.append(len(dev.feed_names))
+                        datapoints.append(f)
+                        
+                        dev.feed_names.append(key)
+                try:
+                    if (len(datapoints) > 0):
+                        publisher.publish_data( device_id, ts, datapoints, feednum=feednums, devdef=devdef, device_type=driver, dev=dev)
+                except:
+                    import traceback
+                    traceback.print_exc();
             else:
                 print "Data Line '%s' did not have a timestamp field (for generic driver)"%msg_dbg
         
