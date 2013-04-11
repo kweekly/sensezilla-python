@@ -16,6 +16,7 @@ class Device:
         self.IDstr = '';
         self.device_type = '';
         self.source_name = '';
+        self.feed_names = [];
         self.source_ids = []
     
         
@@ -40,6 +41,7 @@ def initdb():
           ("idstr","varchar"),
           ("device_type","varchar"),
           ("source_name","varchar"),
+          ("feed_names","varchar[]"),
           ("source_ids","varchar[]")
           ))
     
@@ -120,8 +122,8 @@ def get_devices(where='',orderby='',limit=None):
 
 def insert_device(dev):
     postgresops.dbcur.execute("INSERT INTO devices.physical"+ 
-                "(id,idstr,device_type,source_name,source_ids) "+
-                "VALUES ("+"%s,"*4+"%s)",row_for_device(dev))
+                "(id,idstr,device_type,source_name,feed_names,source_ids) "+
+                "VALUES ("+"%s,"*5+"%s)",row_for_device(dev))
     postgresops.dbcon.commit()
     
 def insert_devicemeta(dev):
@@ -132,7 +134,7 @@ def insert_devicemeta(dev):
 
 def update_device(dev):
     postgresops.dbcur.execute("UPDATE devices.physical SET "+
-                              "id=%s,idstr=%s,device_type=%s,source_name=%s,source_ids=%s where id=%s",row_for_device(dev)+(dev.ID,))
+                              "id=%s,idstr=%s,device_type=%s,source_name=%s,feed_names=%s,source_ids=%s where id=%s",row_for_device(dev)+(dev.ID,))
     postgresops.dbcon.commit()
     
 def update_devicemeta(dev):
@@ -195,11 +197,11 @@ def find_plugload(sourcename,sourceid):
 
 
 def row_for_device(dev):
-    return ( dev.ID, dev.IDstr, dev.device_type, dev.source_name, dev.source_ids )
+    return ( dev.ID, dev.IDstr, dev.device_type, dev.source_name, dev.feed_names, dev.source_ids )
     
 def device_for_row(row):
     dev = Device()
-    ( dev.ID, dev.IDstr, dev.device_type, dev.source_name, dev.source_ids ) = row;
+    ( dev.ID, dev.IDstr, dev.device_type, dev.source_name, dev.feed_names, dev.source_ids ) = row;
     return dev
     
 def row_for_devicemeta(dev):

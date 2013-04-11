@@ -33,7 +33,7 @@ def gen_source_ids(device, devdef=None):
     struct = utils.read_source(device.source_name)
     if not devdef:
         devdef = utils.read_device(device.device_type)
-    num = len(devdef['feeds'])
+    num = len(device.feed_names)
     driver = struct['driver'];
     retval = []
     if driver  == "SMAP":
@@ -42,7 +42,7 @@ def gen_source_ids(device, devdef=None):
         return retval
     elif driver == "CSV":
         for i in range(num):
-            retval.append('%s/%s.csv'%(device.IDstr,devdef['feeds'][i]))
+            retval.append('%s/%s.csv'%(device.IDstr,device.feed_names[i]))
         return retval
     else:
         print "ERROR Cannot generate source ID for %s b/c no %s driver"%(device.source_name,driver)
@@ -55,7 +55,7 @@ def find_device(id_str, create_new=False, device_type=None, source=None, devdef=
     if id_str in device_cache and time.time() < device_cache[id_str].birth + CACHE_TIMEOUT:
         dev = device_cache[id_str]
         devdef = utils.read_device(dev.device_type);
-        if (devdef != None and len(dev.source_ids) < len(devdef['feeds'])):
+        if (devdef != None and len(dev.source_ids) < len(dev.feed_names)):
             dev.source_ids = gen_source_ids(dev,devdef)
     else:
         dev = devicedb.get_devices(where="idstr='%s'"%id_str,limit=1)
@@ -74,7 +74,7 @@ def find_device(id_str, create_new=False, device_type=None, source=None, devdef=
         else:
             dev = dev[0]
             devdef = utils.read_device(dev.device_type);
-            if (devdef != None and len(dev.source_ids) < len(devdef['feeds'])):
+            if (devdef != None and len(dev.source_ids) < len(dev.feed_names)):
                 dev.source_ids = gen_source_ids(dev,devdef)
             
         dev.birth = time.time()
@@ -107,13 +107,13 @@ def publish_smap(source_name,sourcedef,dev,devdef,feednum,devuuid,time,data):
     uuido = uuid.UUID(devuuid)
     ts = inst.get_timeseries(uuido)
     if ts == None:
-        print "add ts: "+'/'+dev.IDstr+'/'+str(devdef['feeds'][feednum]);
-        ts = inst.add_timeseries('/'+dev.IDstr+'/'+str(devdef['feeds'][feednum]),uuido,devdef['feeds'][feednum],data_type='double',milliseconds=False)
+        print "add ts: "+'/'+dev.IDstr+'/'+str(dev.feed_names);
+        ts = inst.add_timeseries('/'+dev.IDstr+'/'+str(dev.feed_names[feednum]),uuido,dev.feed_names[feednum],data_type='double',milliseconds=False)
         smapmeta = {'Instrument/ModelName' : devdef['name'],
                     'Instrument/DeviceDefinition' : dev.device_type,
                     'Instrument/ID' : dev.IDstr,
                     'Instrument/FeedIndex' : str(feednum),
-                    'Instrument/FeedName' : str(devdef['feeds'][feednum]) }
+                    'Instrument/FeedName' : str(dev.feed_names[feednum]) }
         locmeta = devicedb.get_devicemetas(where="key='LOCATION' and %d=any(devices)"%dev.ID,limit=1)
         if len(locmeta) > 0:
             smapmeta['Location/CurrentLocation'] = locmeta[0].value
@@ -195,7 +195,7 @@ def publish_data(id_str, time, data, feednum=None, devdef=None, device_type=None
         
     driver = source_struct['driver']
     for i in range(len(feednum)):
-        if feednum[i] >= len(devdef['feeds']):
+        if feednum[i] >= len(dev.feed_names):
             print "ERROR cannot publish data for feed %d because it is not defined in the definition for %s"%(feednum[i],dev.source_name)
         elif feednum[i] >= len(dev.source_ids) or dev.source_ids[feednum[i]] == None or dev.source_ids[feednum[i]] == '':
             print "ERROR cannot publish data for feed %d of device %s because it is not defined"%(feednum[i],dev.IDstr)
