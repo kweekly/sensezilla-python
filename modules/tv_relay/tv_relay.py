@@ -157,33 +157,24 @@ def publish_data( keyvals, msg_dbg=''):
             pass
         else: # generic driver: try to match keys to feeds
             if 'timestamp' in keyvals:
+                dev = publisher.find_device( device_id, create_new=True, device_type=driver, devdef=devdef )
+                
                 ts = utils.date_to_unix(utils.str_to_date(keyvals['timestamp']))
                 datapoints = []
                 feednums = []
-                for feedidx in range(len(devdef['feeds'])):
-                    if devdef['feeds'][feedidx] in keyvals:
-                        try:
-                            fval = float(keyvals[devdef['feeds'][feedidx]])
-                            datapoints.append(fval)
-                            feednums.append(feedidx)
-                            del keyvals[devdef['feeds'][feedidx]]
-                        except:
-                            import traceback
-                            print "For TV Line: %s"%msg_dbg
-                            traceback.print_exc();
-                            return
-                
-                knu = []
-                for key in keyvals:
-                    if key != 'driver' and key != 'device_id' and key != 'timestamp':
-                        knu.append(key)
+                for key,val in keyvals:
+                    if key in devdef.feed_names:
+                        idx = devdef.feed_names.index(key)
+                        feednums.append(idx)
+                        datapoints.append(val)
+                    else:
+                        feednums.append(len(devdef.feed_names))
+                        datapoints.append(val)
                         
-                if ( len(knu) > 0) :
-                    print "Warning: For TV line '%s', the following keys were not used:"%msg_dbg
-                    print "\t"+",".join(knu)
+                        devdef.feed_names.append(key)
                 
                 if (len(datapoints) > 0):
-                    publisher.publish_data( device_id, ts, datapoints, feednum=feednums, devdef=devdef, device_type=driver )
+                    publisher.publish_data( device_id, ts, datapoints, feednum=feednums, devdef=devdef, device_type=driver)
             else:
                 print "Data Line '%s' did not have a timestamp field (for generic driver)"%msg_dbg
         

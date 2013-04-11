@@ -31,8 +31,7 @@ smap_instances = {}
 
 def gen_source_ids(device, devdef=None):
     struct = utils.read_source(device.source_name)
-    if not devdef:
-        devdef = utils.read_device(device.device_type)
+
     num = len(device.feed_names)
     driver = struct['driver'];
     retval = []
@@ -73,9 +72,8 @@ def find_device(id_str, create_new=False, device_type=None, source=None, devdef=
                 return None
         else:
             dev = dev[0]
-            devdef = utils.read_device(dev.device_type);
-            if (devdef != None and len(dev.source_ids) < len(dev.feed_names)):
-                dev.source_ids = gen_source_ids(dev,devdef)
+            if ( len(dev.source_ids) < len(dev.feed_names)):
+                dev.source_ids = gen_source_ids(dev)
             
         dev.birth = time.time()
         device_cache[id_str] = dev        

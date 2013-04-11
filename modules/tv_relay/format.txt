@@ -1,0 +1,51 @@
+------------
+Description
+------------
+T/V Format for transmitting to tv_relay module. For clients to communicate with central server using simplified string-based protocol.
+
+------------------
+Network Connection
+------------------
+Sensors shall connect to the host (Default: sensezilla.berkeley.edu) using TCP or UDP at a specified port ( Default: 7601 ).  
+The server shall be robust to disconnects and discard any partially sent data.
+
+-----------------
+Line Format
+-----------------
+Each line of data shall be formatted as follows:
+<Type 1>/<Value 1>/<Type 2>/<Value 2>/<LF>
+Example:
+Animal/Dog/Weight (kg)/10/Age/12/<LF>
+
+Where <LF> is the line feed character ('\n' in C/C++ or Hex 0x0A). Any <CR><LF> (Hex 0x0D0A) is interpreted as <LF> only. The slash before <LF> is optional.
+
+Important: For UDP packets, all data must fit in one packet! Typically, this means stay under 576 bytes. Otherwise use TCP.
+
+---------------------
+Sensor Data Prototype
+---------------------
+Sensors reporting one or more timeseries of data shall send the following type-value pairs:
+Type Name  |  Description                           | Example
+------------------------------------------------------------------
+driver     | Which driver is used to interpret      | tempsensorv1
+device_id  | A unique identifier for the sensor     | 0A012FEF088A2E45
+           |( depends on the driver )               |
+timestamp  | Timestamp in UNIX time or '-0s' for now| 
+           
+Additionally, there are probably data fields which are needed by the driver.
+
+---------------------
+Creating a new driver
+---------------------
+For me to write a new driver, I need the following from you:
+1) Device name, such as "ZigBee RFID Tag ver.1"
+2) What the device_id of the device means, such as "16-bit MAC Address"
+3) How many timeseries feeds are coming from the device and what they mean, such as
+     "Feed 1: Location x (m),Feed 2: Location y (m)"
+4) (Optional) An SVG illustration of what the device looks like.
+
+
+---------------------
+Examples
+---------------------
+driver/ppdsensorv1/device_id/Testing TV Input/timestamp/-1s/% Dust Detected/0.3/0.5um pcs per 283ml/1000/
