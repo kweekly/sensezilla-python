@@ -157,33 +157,37 @@ def publish_data( keyvals, msg_dbg=''):
             pass
         else: # generic driver: try to match keys to feeds
             if 'timestamp' in keyvals:
+                dev = publisher.find_device( device_id, create_new=True, device_type=driver, devdef=devdef )
+                
                 ts = utils.date_to_unix(utils.str_to_date(keyvals['timestamp']))
                 datapoints = []
                 feednums = []
-                for feedidx in range(len(devdef['feeds'])):
-                    if devdef['feeds'][feedidx] in keyvals:
-                        try:
-                            fval = float(keyvals[devdef['feeds'][feedidx]])
-                            datapoints.append(fval)
-                            feednums.append(feedidx)
-                            del keyvals[devdef['feeds'][feedidx]]
-                        except:
-                            import traceback
-                            print "For TV Line: %s"%msg_dbg
-                            traceback.print_exc();
-                            return
                 
-                knu = []
-                for key in keyvals:
-                    if key != 'driver' and key != 'device_id' and key != 'timestamp':
-                        knu.append(key)
+                for key,val in keyvals.iteritems():
+                    if key in ['driver','device_id','timestamp']:
+                        continue
                         
-                if ( len(knu) > 0) :
-                    print "Warning: For TV line '%s', the following keys were not used:"%msg_dbg
-                    print "\t"+",".join(knu)
-                
-                if (len(datapoints) > 0):
-                    publisher.publish_data( device_id, ts, datapoints, feednum=feednums, devdef=devdef, device_type=driver )
+                    try:
+                        f = float(val);
+                    except:
+                        print "Skipping Key-Value pair",key,"/",val,"as it is non-numeric"
+                        continue;
+                        
+                    if key in dev.feed_names:
+                        idx = dev.feed_names.index(key)
+                        feednums.append(idx)
+                        datapoints.append(f)
+                    else:
+                        feednums.append(len(dev.feed_names))
+                        datapoints.append(f)
+                        
+                        dev.feed_names.append(key)
+                try:
+                    if (len(datapoints) > 0):
+                        publisher.publish_data( device_id, ts, datapoints, feednum=feednums, devdef=devdef, device_type=driver, dev=dev)
+                except:
+                    import traceback
+                    traceback.print_exc();
             else:
                 print "Data Line '%s' did not have a timestamp field (for generic driver)"%msg_dbg
         

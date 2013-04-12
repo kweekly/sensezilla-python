@@ -26,20 +26,7 @@ def gen_option_list(parent, level, listgen, idstop, idselect,key,idselectlist=[]
             else:
                 listgen += "<option value=%d"%met.ID+" %s>"%seltex+"<b>"+met.value+"</b></option>\n";
             listgen = gen_option_list(met.ID,level+1,listgen,idstop,idselect,key,idselectlist);
-    return listgen
-        
-
-def check_for_alt_feeds(devdef,dev) :
-    import devicedb
-    altfeeds = devicedb.get_devicemetas(where="key like 'ALTFEEDNAME_%%' and %d=any(devices)"%(dev.ID));
-    
-    if len(altfeeds) > 0:
-        al = len('ALTFEEDNAME')
-        altfeeds.sort(key=lambda s:int(s.key[al:]));
-        devdef['feeds'] = ['???']*(int(altfeeds[-1].key[al:])+1)
-        for af in altfeeds: 
-            n = int(af.key[al:])
-            devdef['feeds'][n] = af.value;            
+    return listgen       
     
 
 def do_locationbuilder(req,environ,start_response):
@@ -339,15 +326,14 @@ def do_locationbuilder(req,environ,start_response):
             struc = utils.read_device(devdeffile)
             if ( devdeffile == dev.device_type ):
                 devdef = struc
+                devdef['feeds'] = dev.feed_names
             devdeflist.append(struc['name']);
-        
-        check_for_alt_feeds(devdef,dev);
                     
         if 'action' in d and d['action'][0] == 'edit':
             post = cgi.FieldStorage(fp=environ['wsgi.input'],environ=environ,keep_blank_values=True);
             dev.IDstr = post['IDstr'].value
             dev.source_ids = []
-            for i in range(len(devdef['feeds'])):
+            for i in range(len(dev.feed_names)):
                 dev.source_ids.append(post['feed%d'%i].value)
             
             if (post['devdef'].value != dev.device_type):
@@ -373,7 +359,7 @@ def do_locationbuilder(req,environ,start_response):
                 loc[0].devices.append(dev.ID)
                 devicedb.update_devicemeta(loc[0])
 
-            for i in range(len(devdef['feeds'])):
+            for i in range(len(dev.feed_names)):
                 if ( 'plugload%d'%i in post ):
                     plval = post['plugload%d'%i].value;
                     if plval == '1':
@@ -442,7 +428,7 @@ def do_locationbuilder(req,environ,start_response):
         fin = open(devdef['svgfile'],'r')
         svgdata = fin.read()
         fin.close()
-                
+
         sourcelist = utils.list_sources()
         sourcedef = utils.read_source(dev.source_name);
         
@@ -457,7 +443,7 @@ def do_locationbuilder(req,environ,start_response):
         if 'plugload_groups' in devdef:
             plgroups = [int(s) for s in devdef['plugload_groups'].split(',')]
         else:
-            plgroups = [len(devdef['feeds'])]
+            plgroups = [len(dev.feed_names)]
         
         
         plchecks = [];

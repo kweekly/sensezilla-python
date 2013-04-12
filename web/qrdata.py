@@ -20,7 +20,7 @@ CODES = {
                         "humidity":     "0013A2004090D79C",
                         "temperature":  "0013A2004090D79C",
                         "occupancy":    "0013A2004090D791",
-                        "light":        "0013A2004090D79C"
+                        "light":        "0013A2004090D791"
                     })
  };
 
@@ -82,8 +82,8 @@ def lookupstuff():
             devdef = utils.read_device(dev.device_type)
             poweruuid = None
             currentuuid = None
-            for feednameidx in range(len(devdef['feeds'])):
-                feedname = devdef['feeds'][feednameidx]
+            for feednameidx in range(len(dev.feed_names)):
+                feedname = dev.feed_names[feednameidx]
                 if 'power %d'%(dat[2]+1) in feedname.lower():
                     poweruuid = dev.source_ids[feednameidx]
                 elif 'current %d'%(dat[2]+1) in feedname.lower():
