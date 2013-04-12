@@ -164,7 +164,9 @@ elif sys.argv[1] == 'fetch':
             datestr = "%04d-%02d-%02d"%(curdate.year,curdate.month,curdate.day)
             url = fmap['url'] + 'api/%s/footfalls.json?api_key=%s&date=%s'%(fmap['venueID'],fmap['apikey'],datestr)
             cache_fname = cache_dir + '/yfind_footfall_' + datestr + '.csv';
-            if os.path.exists(cache_fname) and datetime.utcnow().date() != curdate.date():
+            thisday = (datetime.utcnow().date() == curdate.date())
+                
+            if os.path.exists(cache_fname) and not thisday:
                 print "Date %s already exists in cache, skip fetch"%datestr
             else:
                 fout = tempfile.TemporaryFile();
@@ -205,6 +207,8 @@ elif sys.argv[1] == 'fetch':
                         
                     
             fin.close()
+            if thisday:
+                os.remove(cache_fname)
         
         datfout.delete = False
         datfout.close()
