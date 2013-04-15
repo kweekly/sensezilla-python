@@ -56,13 +56,15 @@ def process_cmd(cmd):
                 
 
     if tag_reading_recieved:
+        tlvstr = ''
         for key,val in tag_reading_map.iteritems():
-            tlvstr = 'timestamp/%d'%int(time.time()+0.5)+'/driver/rfidloc_sinbb/device_id/%s/'%utils.hexify(key)
+            tlvstr += 'timestamp/%d'%int(time.time()+0.5)+'/driver/rfidloc_sinbb/device_id/%s/'%utils.hexify(key)
             for subkey,rssival in val.iteritems():
                 tlvstr += 'Sensor %s RSSI(dBm)/%d/'%(utils.hexify(subkey),rssival)
             tlvstr += '\n'
-            print tlvstr,
-        
+            #print tlvstr,
+
+        #print tlvstr,
         if sock_connected:
             try:
                 s.sendall(tlvstr);
