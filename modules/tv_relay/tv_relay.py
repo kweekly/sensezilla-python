@@ -91,6 +91,7 @@ def tick():
         for client in clients:
             try :
                 str = client.sock.recv(4096);
+                #print str
                 if not str: # probably disconnected or something
                     try: # try to disconnect
                         client.sock.close();
