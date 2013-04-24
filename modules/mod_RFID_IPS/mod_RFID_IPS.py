@@ -64,7 +64,7 @@ def process_cmd(cmd):
             tlvstr += '\n'
             #print tlvstr,
 
-        #print tlvstr,
+        print tlvstr,
         if sock_connected:
             try:
                 s.sendall(tlvstr);
