@@ -13,12 +13,17 @@ from datetime import datetime, timedelta
 
 if len(sys.argv) < 2:
     print """
-Usage: fetcher.py [list | fetch]
+Usage: fetcher.py [list | fetch | delete]
 
     list : List available sources and identifiers        
 
     fetch [--plot fname.png] [--from <time>] [--to <time>] <source name> <device identifier> <output CSV>
         Fetch data to CSV, default 1 day history, or by given times
+        
+    delete : <device type> <device identifier> [--nopretend] [--source <source name>] 
+        Delete all streams for device ( if source supports it ). Can use '%' and '_' for wildcards.
+        --source restricts to a certain source
+        --nopretend flag is needed to actually commit the changes
 """
 elif sys.argv[1] == 'list':
     for file in os.listdir(config.map['global']['source_dir']):
@@ -54,7 +59,51 @@ elif sys.argv[1] == 'list':
                         
                     print ""
                 
-            
+
+elif sys.argv[1] == 'delete':
+    import pycurl
+    
+    import devicedb
+    import postgresops
+    devicedb.connect();
+    if not devicedb.connected():
+        print "Cannot connect to devicedb!"
+        sys.exit(1);
+        
+    source = None    
+    try:
+        i = sys.argv.index('--source')
+        source = sys.argv[i]
+        postgresops.check_evil(source)
+        sys.argv = sys.argv[0:i] + sys.argv[i+2:]
+    except ValueError:pass    
+    
+    pretend = True
+    try:
+        i = sys.argv.index('--nopretend')
+        pretend = False
+        sys.argv = sys.argv[0:i] + sys.argv[i+1:]
+    except ValueError:pass
+    
+    dev_type_expr = sys.argv[2]
+    dev_id_expr = sys.argv[3]
+    postgresops.check_evil(dev_type_expr)
+    postgresops.check_evil(dev_id_expr)
+    
+    whereexpr = "device_type LIKE '%s' AND idstr LIKE '%s'"%(dev_type_expr,dev_id_expr);
+    if source:
+        whereexpr += " AND source_name='%s'"%source
+        
+    devices = devicedb.get_devices(where=whereexpr);
+    for dev in devices:
+        devdef = utils.read_device(dev.device_type)
+        print "For device %s (%s) on %s:"%(dev.IDstr,devdef['name'],dev.source_name)
+        for idx in range(len(dev.source_ids)):
+            id = dev.source_ids[idx]
+            if ( idx < len(dev.feed_names) ):
+                print "\t%20s : %s"%(dev.feed_names[idx],id)
+            else:
+                print "\t%20s : %s"%('???',id)
             
 elif sys.argv[1] == 'fetch':
     import pycurl
