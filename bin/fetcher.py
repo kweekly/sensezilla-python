@@ -20,10 +20,12 @@ Usage: fetcher.py [list | fetch | delete]
     fetch [--plot fname.png] [--from <time>] [--to <time>] <source name> <device identifier> <output CSV>
         Fetch data to CSV, default 1 day history, or by given times
         
-    delete : <device type> <device identifier> [--nopretend] [--source <source name>] 
+    delete : <device type> <device identifier> [--nopretend] [--source <source name>] [--dataonly] [--devonly]
         Delete all streams for device ( if source supports it ). Can use '%' and '_' for wildcards.
         --source restricts to a certain source
         --nopretend flag is needed to actually commit the changes
+        --dataonly says only to delete data files/streams
+        --devonly says to only delete metadata
 """
 elif sys.argv[1] == 'list':
     for file in os.listdir(config.map['global']['source_dir']):
@@ -62,7 +64,7 @@ elif sys.argv[1] == 'list':
 
 elif sys.argv[1] == 'delete':
     import pycurl
-    
+    import fnmatch
     import devicedb
     import postgresops
     devicedb.connect();
@@ -79,32 +81,107 @@ elif sys.argv[1] == 'delete':
     except ValueError:pass    
     
     pretend = True
+    devonly = False
+    dataonly = False
     try:
         i = sys.argv.index('--nopretend')
         pretend = False
         sys.argv = sys.argv[0:i] + sys.argv[i+1:]
     except ValueError:pass
+    try:
+        i = sys.argv.index('--devonly')
+        devonly = True
+        sys.argv = sys.argv[0:i] + sys.argv[i+1:]
+    except ValueError:pass
+    try:
+        i = sys.argv.index('--dataonly')
+        dataonly = True
+        sys.argv = sys.argv[0:i] + sys.argv[i+1:]
+    except ValueError:pass
+    
+    if devonly and dataonly:
+        print "Error: --devonly and --dataonly are exclusive options."
+        sys.exit(1)
     
     dev_type_expr = sys.argv[2]
     dev_id_expr = sys.argv[3]
+    dev_type_expr = dev_type_expr.replace('%','*').replace('_','?')
     postgresops.check_evil(dev_type_expr)
     postgresops.check_evil(dev_id_expr)
     
-    whereexpr = "device_type LIKE '%s' AND idstr LIKE '%s'"%(dev_type_expr,dev_id_expr);
-    if source:
-        whereexpr += " AND source_name='%s'"%source
+    devdefns = utils.list_devicedefs()
+    devtypes = []
+    for devdefn in devdefns:
+        devdef = utils.read_device(devdefn)
+        if ( fnmatch.fnmatch(devdef['name'].lower(),dev_type_expr.lower()) ):
+            devtypes.append(devdefn)
+    
+    if len(devtypes) == 0 :
+        print "No matches for device type expression '%s', choices are:"%dev_type_expr
+        for devdefn in devdefns:
+            devdef = utils.read_device(devdefn)
+            print "\t%s"%devdef['name']
+        print "\n"
+        sys.exit(1);
+    
+    devices = []
+    for devtype in devtypes:
+        whereexpr = "device_type LIKE '%s' AND idstr LIKE '%s'"%(devtype,dev_id_expr);
+        if source:
+            whereexpr += " AND source_name='%s'"%source
         
-    devices = devicedb.get_devices(where=whereexpr);
+        devices.extend(devicedb.get_devices(where=whereexpr))
+        
+    print "Streams Selected:"
+    to_delete = {}
+    devs_delete = []
     for dev in devices:
         devdef = utils.read_device(dev.device_type)
-        print "For device %s (%s) on %s:"%(dev.IDstr,devdef['name'],dev.source_name)
+        devs_delete.append(dev)
+        if ( len(dev.source_ids) == 0 ): continue;
+        print "\nFor device %s (%s) on %s:"%(dev.IDstr,devdef['name'],dev.source_name)
+        if dev.source_name not in to_delete:
+            to_delete[dev.source_name] = []
         for idx in range(len(dev.source_ids)):
             id = dev.source_ids[idx]
             if ( idx < len(dev.feed_names) ):
                 print "\t%20s : %s"%(dev.feed_names[idx],id)
             else:
                 print "\t%20s : %s"%('???',id)
+                
+            to_delete[dev.source_name].append(id)
+    
+    if not devonly:
+        for source,idlist in to_delete.iteritems():
+            sourcedef = utils.read_source(source)
             
+            if sourcedef['driver'] == 'SMAP':
+                url = str(sourcedef['url']+'api/query?key=%s'%(sourcedef['apikey']))
+                poststr = str('delete where ' + ' or '.join(["uuid = '%s'"%i for i in idlist]) + '\n')
+                print "POSTING TO: %s\n\n%s"%(url,poststr)
+                if not pretend:
+                    pc = pycurl.Curl()
+                    pc.setopt(pc.URL, url)
+                    pc.setopt(pc.POSTFIELDS, poststr)
+                    pc.setopt(pc.VERBOSE,True)
+                    pc.perform()            
+            elif sourcedef['driver'] == 'CSV':
+                for id in idlist:
+                    print "Deleting file: %s"%id
+                    if not pretend:
+                        os.remove(id)
+            else :
+                print "Warning: No delete driver for source %s (driver %s), data will NOT be deleted"%(source,sourcedef['driver'])
+     
+    print "\n"
+    if not dataonly:
+        for devid in devs_delete:
+            print "Deleting device %s (ID:%d)"%(devid.IDstr,devid.ID)
+            if not pretend:
+                devicedb.delete_device(devid.ID)
+    
+    if pretend:
+        print "\n(Note that none of the above happened because you did not use --nopretend)"
 elif sys.argv[1] == 'fetch':
     import pycurl
     
