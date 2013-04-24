@@ -123,7 +123,7 @@ try:
                     print "Digi data: "+data
                     ts_noupdate.add(source_addr)
                 
-                print "<"+source_addr+" : "+utils.hexify(data)
+                #print "<"+source_addr+" : "+utils.hexify(data)
                 children_cache.add(source_addr)
 
                 rtime = 0

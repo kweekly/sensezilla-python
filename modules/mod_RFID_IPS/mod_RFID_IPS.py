@@ -98,10 +98,10 @@ def reconnect_serial(print_errors=False):
     ser = serial.Serial(sports[0],int(config.map['mod_RFID_IPS']['serial_speed']),timeout=0)
 
 SERIAL_PORTS = config.map['mod_RFID_IPS']['serial_ports'];
-SERIAL_TIMEOUT = config.map['mod_RFID_IPS']['serial_read_timeout'];
+SERIAL_TIMEOUT = float(config.map['mod_RFID_IPS']['serial_read_timeout'])
 last_serial_msg = time.time()
 ser = None
-rconnect_serial();
+reconnect_serial(True);
 
 MAX_CMD_SIZE = int(config.map['mod_RFID_IPS']['max_cmd_size']);
 
@@ -155,6 +155,7 @@ while True:
             except:pass
             sock_connected = False
     
+    #print time.time(),last_serial_msg
     if time.time() - last_serial_msg >= SERIAL_TIMEOUT:
         print "Serial port timeout, reconnecting"
         reconnect_serial()
