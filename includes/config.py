@@ -95,6 +95,7 @@ class IPCMap:
         
     def items(self):
         return self.innermap.items();
+        
 
 
 map = IPCMap({'global':IPCMap({'root_dir':root,'message_dir':message_dir, 'module_dir':module_dir, 'include_dir':include_dir, 'mission_dir':mission_dir, 
@@ -212,7 +213,17 @@ def read_struct(conf_file, verbose=False):
         return None
     
             
-
+def load_separate_conf(config_file):
+    global map
+    tmap = map;
+    map = {'global':{}}
+    for key,val in tmap['global'].items():
+        map['global'][key] = val;
+    load_conf(config_file);
+    ttmap = map;
+    map = tmap;
+    return ttmap;
+            
 def load_conf(conf_file, verbose=False):
     import re
     global map
@@ -224,7 +235,7 @@ def load_conf(conf_file, verbose=False):
     comexpr = re.compile(r"^(?P<line>.*?)#.*$")
     sectexpr = re.compile(r"^\s*\[(?P<sect>.+?)\]\s*$");
     incexpr = re.compile(r"^\s*include\s+\"(?P<file>.*?)\"\s*$");
-    expr = re.compile(r"^\s*(?P<key>\S+)\s*(?P<oper>\S+?)\s*(?P<val>\S+)$");
+    expr = re.compile(r"^\s*(?P<key>\S+)\s*(?P<oper>=|@=|@\+)\s*(?P<val>.+?)$");
     expr2 =re.compile(r"^\s*(?P<key>\S+)\s*(?P<oper>\S+?)\s*\"(?P<val>.*?)\"$");
     try :
         f = open(conf_file,'r');

@@ -29,9 +29,29 @@ if not devicedb.connected():
     print "Error: cannot connect to devicedb";
     sys.exit(1);
     
-tempmap = config.map
-config.map = {}
-config.load_conf(rssi_sysfile)
-rssimap = config.map
-config.map = tempmap
-
+rssimap = config.load_separate_conf(rssi_sysfile)
+for referenceID in rssimap['tags']['reference_list']:
+    print "\nLooking for data for tag:"+referenceID
+    postgresops.check_evil(referenceID)
+    dev = devicedb.get_devices(where="idstr='%s' and device_type like 'rfidloc%%'"%referenceID,limit=1)
+    if ( len(dev) == 0 ):
+        print "\tDevice not found in db";
+        continue;
+    dev = dev[0]
+    for sensorID in rssimap['sensors']['active_list']:
+        print "\tSensor "+sensorID,
+        fidx = -1
+        for feedi in range(1,len(dev.feed_names)):
+            if sensorID in dev.feed_names[feedi]:
+                fidx = feedi
+                break;
+        if fidx == -1:
+            print "NOT FOUND"
+        else:
+            print dev.source_name+":"+dev.source_ids[fidx]
+            try:
+                os.mkdir(outdir);
+            except:pass
+            cmd = "fetcher.py fetch "+dev.source_name+" "+dev.source_ids[fidx]+" %s/RSSI_t%s_s%s.csv"%(outdir,referenceID,sensorID);
+            print "\t\t"+cmd
+            os.system(cmd);
