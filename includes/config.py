@@ -220,12 +220,12 @@ def load_conf(conf_file, verbose=False):
     cmap = map;
     #map = {}
     cur_mod = 'global'
-    wsexpr = re.compile(r"^\s*$");
+    wsexpr = re.compile(r"^(?P<text>.*?)\s*$");
     comexpr = re.compile(r"^(?P<line>.*?)#.*$")
     sectexpr = re.compile(r"^\s*\[(?P<sect>.+?)\]\s*$");
     incexpr = re.compile(r"^\s*include\s+\"(?P<file>.*?)\"\s*$");
-    expr = re.compile(r"^\s*(?P<key>\S+)\s*(?P<oper>\S+?)\s*(?P<val>\S+)\s*$");
-    expr2 =re.compile(r"^\s*(?P<key>\S+)\s*(?P<oper>\S+?)\s*\"(?P<val>.*?)\"\s*$");
+    expr = re.compile(r"^\s*(?P<key>\S+)\s*(?P<oper>\S+?)\s*(?P<val>\S+)$");
+    expr2 =re.compile(r"^\s*(?P<key>\S+)\s*(?P<oper>\S+?)\s*\"(?P<val>.*?)\"$");
     try :
         f = open(conf_file,'r');
         line_no = 0;
@@ -239,7 +239,10 @@ def load_conf(conf_file, verbose=False):
             else:
                 cline = line;
 
-            if ( wsexpr.match(cline) ):
+            match = wsexpr.match(cline);
+            if ( match ):
+                cline = match.group('text');
+            if ( len(cline) == 0 ):
                 continue;
             
             sectmatch = sectexpr.match(cline);
