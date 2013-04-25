@@ -27,6 +27,7 @@ def process_cmd(cmd):
     tag_reading_recieved = False
     tag_reading_map = {} # primary key = tag addr, secondary key = sensor addr, value = rssi value
     
+    #print "Recieved: "+utils.hexify(cmd)
     reader_addr_str = cmd[0:2]
     unknown_str = cmd[2]
     pos = 3
@@ -38,6 +39,9 @@ def process_cmd(cmd):
            # print "Reading from sensor "+utils.hexify(sensor_addr_str),
             pos2 = pos+4;
             while pos2 < pos+1+length:
+                if len(cmd) < 4+pos2:
+                    print "Warning: Unexpected end of data (len given was %d, but actual length was %d)"%(length,len(cmd)-pos-1)
+                    break
                 tag_addr_str = cmd[pos2:pos2+2]
                 tag_rssi_str = cmd[pos2+2:pos2+4]
                 (tag_rssi,) = struct.unpack(">h",tag_rssi_str)
@@ -62,9 +66,8 @@ def process_cmd(cmd):
             for subkey,rssival in val.iteritems():
                 tlvstr += 'Sensor %s RSSI(dBm)/%d/'%(utils.hexify(subkey),rssival)
             tlvstr += '\n'
-            #print tlvstr,
 
-        #print tlvstr,
+#        print tlvstr,
         if sock_connected:
             try:
                 s.sendall(tlvstr);
@@ -131,11 +134,18 @@ while True:
         
         last_serial_msg = time.time()
         b = b[0]
+#        print utils.hexify(b),
         if b == '\x7E':
             cmdbuf = ''
             recieving_cmd = True
-        elif b == '\x7B':
-            process_cmd(cmdbuf)
+        elif recieving_cmd and b == '\x7B':
+            print ''
+            try:
+                process_cmd(cmdbuf)
+            except:
+                print "Error processing "+utils.hexify(cmdbuf)
+                import traceback
+                traceback.print_exc()
             recieving_cmd = False
         elif len(cmdbuf) >= MAX_CMD_SIZE:
             print "Buffer overflow!"
