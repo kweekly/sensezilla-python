@@ -13,14 +13,24 @@ from datetime import datetime, timedelta
 
 if len(sys.argv) < 3:
     print """
-Usage: fetch_rfid_data.py <rssi system file> <output directory> [--from <fromtime>] [--to <totime>] [--pretend] [--metaonly]
+Usage: fetch_rfid_data.py <rssi system file> <output directory> [--from <fromtime>] [--to <totime>] [--pretend] [--metaonly] [--tags tag1,tag2,tag3]
 """
     sys.exit(0);
     
 (has_ftime, fromtime, sys.argv) = utils.check_arg(sys.argv,'--from',1)
-fromtime = fromtime[0]
+if has_ftime:
+    fromtime = fromtime[0]
 (has_totime, totime, sys.argv) = utils.check_arg(sys.argv,'--to',1)
-totime = totime[0]
+if has_totime:
+    totime = totime[0]
+    
+(has_date, datestr, sys.argv) = utils.check_arg(sys.argv,'--date',1)
+if has_date:
+    datestr = datestr[0]
+    
+(has_tags, tagids, sys.argv) = utils.check_arg(sys.argv,'--tags',1)
+if has_tags:
+    tagids = tagids[0].split(',')
 (pretend,a,sys.argv) = utils.check_arg(sys.argv,'--pretend')
 (metaonly,a,sys.argv) = utils.check_arg(sys.argv,'--metaonly')
 
@@ -46,10 +56,13 @@ if not pretend:
     fptr.write('[rssidata]\n')
     
 rssimap = config.load_separate_conf(rssi_sysfile)
-for referenceID in rssimap['tags']['reference_list']:
-    print "\nLooking for data for tag:"+referenceID
-    postgresops.check_evil(referenceID)
-    dev = devicedb.get_devices(where="idstr='%s' and device_type like 'rfidloc%%'"%referenceID,limit=1)
+if not has_tags:
+    tagids = rssimap['tags']['reference_list']
+    
+for tagID in tagids:
+    print "\nLooking for data for tag:"+tagID
+    postgresops.check_evil(tagID)
+    dev = devicedb.get_devices(where="idstr='%s' and device_type like 'rfidloc%%'"%tagID,limit=1)
     if ( len(dev) == 0 ):
         print "\tDevice not found in db";
         continue;
@@ -62,10 +75,10 @@ for referenceID in rssimap['tags']['reference_list']:
                 fidx = feedi
                 break
                 
-        datfname = "%s/RSSI_t%s_s%s.csv"%(outdir,referenceID,sensorID);
+        datfname = "%s/RSSI_t%s_s%s.csv"%(outdir,tagID,sensorID);
         datfname_relpath = os.path.relpath(datfname,outdir)
         if not pretend:
-            fptr.write('%s_%s = %s\n'%(referenceID,sensorID,datfname_relpath))
+            fptr.write('%s_%s = %s\n'%(tagID,sensorID,datfname_relpath))
         
         if fidx == -1:
             print "NOT FOUND"
@@ -81,6 +94,8 @@ for referenceID in rssimap['tags']['reference_list']:
                     cmd += " --from "+fromtime
                 if has_totime:
                     cmd += " --to "+totime
+                if has_date:
+                    cmd += " --date "+datestr
                     
                 print "\t\t"+cmd
                 if not pretend:

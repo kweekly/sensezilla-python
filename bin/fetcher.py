@@ -199,12 +199,18 @@ elif sys.argv[1] == 'fetch':
     
     fromtime = datetime.now() - timedelta(weeks=1)
     totime = datetime.now()
+    datestr = ''
     
+    try:
+        i = sys.argv.index('--date')
+        datestr = sys.argv[i+1] + '.' ;
+        sys.argv = sys.argv[0:i] + sys.argv[i+2:]
+    except ValueError:pass
     
     try:
         i = sys.argv.index('--from')
         try:
-            fromtime = utils.str_to_date(sys.argv[i+1])
+            fromtime = utils.str_to_date(datestr + sys.argv[i+1])
         except ValueError, msg:
             print "Bad from time: "+str(msg)
         sys.argv = sys.argv[0:i] + sys.argv[i+2:]
@@ -213,11 +219,12 @@ elif sys.argv[1] == 'fetch':
     try:
         i = sys.argv.index('--to')
         try:
-            totime = utils.str_to_date(sys.argv[i+1])
+            totime = utils.str_to_date(datestr + sys.argv[i+1])
         except ValueError, msg:
             print "Bad to time: "+str(msg)
         sys.argv = sys.argv[0:i] + sys.argv[i+2:]
     except ValueError:pass
+
     
     try:
         i = sys.argv.index('--plot')

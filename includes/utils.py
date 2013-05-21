@@ -17,6 +17,27 @@ def str_to_date(dstr):
     except ValueError:pass
     
     try:
+        if '.' in dstr:
+            #print dstr
+            from pytz import timezone
+            pts = dstr.split('.')
+            tzpst = timezone('US/Pacific')
+            tzfrom = tzpst
+            if 'sg' in pts:
+                tzfrom = timezone('Etc/GMT-8') ## Buggy python blah
+                      
+            
+            retval = datetime(year=int(pts[2]),month=int(pts[0]),day=int(pts[1]),tzinfo=tzfrom) + str_to_interval(pts[-1]);
+            #print retval
+            retval = retval.astimezone(tzpst)
+            #print retval
+            return retval
+            sys.exit(1)
+    except: 
+        import traceback
+        traceback.print_exc()
+    
+    try:
         if (dstr[0] == '-'):
             return datetime.now() - str_to_interval(dstr[1:])
     except ValueError:pass
