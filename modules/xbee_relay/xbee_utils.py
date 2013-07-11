@@ -27,7 +27,7 @@ if DRIVER == 'beagleboard':
         
     do_cmd('echo 20 > /sys/kernel/debug/omap_mux/uart1_rxd')
     do_cmd('echo 0 > /sys/kernel/debug/omap_mux/uart1_txd')
-    do_cmd('echo BB-UART > /sys/devices/bone_capemgr.*/slots')
+    do_cmd('echo BB-UART1 > /sys/devices/bone_capemgr.7/slots')
     
     SERIAL_PORT = '/dev/ttyO1'
 elif DRIVER == 'direct' or True:
