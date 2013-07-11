@@ -67,7 +67,7 @@ def read_packet(data):
     feedvalsfound = []
     dev = dev_BT_cache[BT]
     if MT == MT_SENSOR_DATA:
-        (time,fields) = struct.unpack('<iH',data[0:6])
+        (time,fields) = struct.unpack('<IH',data[0:6])
         data = data[6:]
         feedidx = 0;
         # check each bit in <fields> and unpack from <data>
@@ -95,3 +95,6 @@ def read_packet(data):
             print "\tFeed %d : %s => %8.2e"%(fi,dev['feeds'][feedidxfound[fi]],feedvalsfound[fi])
             
         return (dev,MT_SENSOR_DATA,time,feedidxfound,feedvalsfound)
+        
+def timesync_packet():
+    return '\x00\x00'+struct.pack('<I',time.time())
