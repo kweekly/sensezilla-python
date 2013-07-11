@@ -20,6 +20,7 @@ import xbee_relay_resp_pb2
 import struct
 
 import publisher
+import sensor_packet
 
 server = unixIPC.UnixIPC();
 server.run_server(False, int(config.map['xbee_relay']['port']));
@@ -69,82 +70,92 @@ def unpack_several(data, offset=0, numfields=1, datatype='l', endian='<'):
     
 
 def publish(source, data):
-#    print "Publish from %s data %s"%(source,utils.hexify(data))
-    if len(data) == 4*(1+12):
-        guess_device = 'powerstripv1'
-    elif len(data) >= 34:
-        guess_device = 'envsensorv1'
-    else:
-        guess_device = None
-    
-    
-    dev = publisher.find_device(source, create_new=True, device_type=guess_device )
-    if dev == None:
-        return;
-
-    try: 
-        if dev.device_type == 'powerstripv1':
-            if len(data) != 4*(1+12):
-                return
-            off = 0
-            (timestamp,) = struct.unpack_from('<l',data)
-            off += 4
-            datapoints = list(unpack_several(data,off,12,'f',endian='<'))
-            for di in range(len(datapoints)):
-                d = datapoints[di]
-                if d > 1e4 or d < -1e4:
-                    print "BIG DATA DETECTED: %.2f INDEX %d : "%(d,di) + utils.hexify(data)
-                    return;
-                    
-            off += 4*12
-            publisher.publish_data(source, timestamp, datapoints)
-        elif dev.device_type == 'ppdsensorv1':
-            if len(data) != 4*(1+2):
-                return
-            off = 0
-            (timestamp,) = struct.unpack_from('<l',data)
-            off += 4
-            datapoints = list(unpack_several(data,off,2,'l',endian='<'))
-            duty_cycle = (datapoints[0])/float(datapoints[0] + datapoints[1])
-            devdef = utils.read_device(dev.device_type);
-            call = [float(a) for a in (devdef['calibration_lpot'].split(','))];
-            calc = [float(a) for a in (devdef['calibration_conc'].split(','))];
-            if duty_cycle <= 0:
-                conc = float(0)
-            elif duty_cycle >= call[-1]:
-                conc = calc[-1]
-            else:
-                for i in range(0,len(call)-1):
-                    if ( duty_cycle >= call[i] and duty_cycle < call[i+1] ):
-                        pct = (duty_cycle - call[i])/(call[i+1] - call[i])
-                        conc = pct * calc[i+1] + (1-pct) * calc[i];
-                        break
-
-            publisher.publish_data(source, timestamp, [100.0*duty_cycle,conc])
-        elif dev.device_type == 'envsensorv1':
-            off = 0
-            (timestamp,fmask) = struct.unpack_from('<lH',data)
-            off += 6
-            feedids = [];
-            if fmask & 0x01:
-                feedids += [0]
-            if fmask & 0x02:
-                feedids += [1]
-            if fmask & 0x04:
-                feedids += [2]
-            if fmask & 0x08:
-                feedids += [3]
-            if fmask & 0x10:
-                feedids += [4,5,6]
-            if fmask & 0x20:
-                feedids += [7,8,9]
-            
-            datapoints = list(unpack_several(data,off,len(feedids),'f',endian='<'))            
-            publisher.publish_data(source, timestamp, datapoints, feednum=feedids);
-        else:
-            print "Device type %s not recognized by xbee server"%dev.device_type
+    print "Publish from %s data %s"%(source,utils.hexify(data))
+    try:
+        SPF_result = sensor_packet.read_packet(data)
     except struct.error, emsg:
-        print "Error unpacking packet from %s device (%s): %s"%(dev.device_type,str(emsg),utils.hexify(data))
+            print "Error parsing SPF packet from %s device (%s): %s"%(dev.device_type,str(emsg),utils.hexify(data))
+
+    if SPF_result != None:
+        (dev,packet_type,time,feedidxfound,feedvalsfound) = SPF_result
+        
+        return;
+    else:
+        if len(data) == 4*(1+12):
+            guess_device = 'powerstripv1'
+        elif len(data) >= 34:
+            guess_device = 'envsensorv1'
+        else:
+            guess_device = None
+    
+    
+        dev = publisher.find_device(source, create_new=True, device_type=guess_device )
+        if dev == None:
+            return;
+
+        try: 
+            if dev.device_type == 'powerstripv1':
+                if len(data) != 4*(1+12):
+                    return
+                off = 0
+                (timestamp,) = struct.unpack_from('<l',data)
+                off += 4
+                datapoints = list(unpack_several(data,off,12,'f',endian='<'))
+                for di in range(len(datapoints)):
+                    d = datapoints[di]
+                    if d > 1e4 or d < -1e4:
+                        print "BIG DATA DETECTED: %.2f INDEX %d : "%(d,di) + utils.hexify(data)
+                        return;
+                        
+                off += 4*12
+                publisher.publish_data(source, timestamp, datapoints)
+            elif dev.device_type == 'ppdsensorv1':
+                if len(data) != 4*(1+2):
+                    return
+                off = 0
+                (timestamp,) = struct.unpack_from('<l',data)
+                off += 4
+                datapoints = list(unpack_several(data,off,2,'l',endian='<'))
+                duty_cycle = (datapoints[0])/float(datapoints[0] + datapoints[1])
+                devdef = utils.read_device(dev.device_type);
+                call = [float(a) for a in (devdef['calibration_lpot'].split(','))];
+                calc = [float(a) for a in (devdef['calibration_conc'].split(','))];
+                if duty_cycle <= 0:
+                    conc = float(0)
+                elif duty_cycle >= call[-1]:
+                    conc = calc[-1]
+                else:
+                    for i in range(0,len(call)-1):
+                        if ( duty_cycle >= call[i] and duty_cycle < call[i+1] ):
+                            pct = (duty_cycle - call[i])/(call[i+1] - call[i])
+                            conc = pct * calc[i+1] + (1-pct) * calc[i];
+                            break
+
+                publisher.publish_data(source, timestamp, [100.0*duty_cycle,conc])
+            elif dev.device_type == 'envsensorv1':
+                off = 0
+                (timestamp,fmask) = struct.unpack_from('<lH',data)
+                off += 6
+                feedids = [];
+                if fmask & 0x01:
+                    feedids += [0]
+                if fmask & 0x02:
+                    feedids += [1]
+                if fmask & 0x04:
+                    feedids += [2]
+                if fmask & 0x08:
+                    feedids += [3]
+                if fmask & 0x10:
+                    feedids += [4,5,6]
+                if fmask & 0x20:
+                    feedids += [7,8,9]
+                
+                datapoints = list(unpack_several(data,off,len(feedids),'f',endian='<'))            
+                publisher.publish_data(source, timestamp, datapoints, feednum=feedids);
+            else:
+                print "Device type %s not recognized by xbee server"%dev.device_type
+        except struct.error, emsg:
+            print "Error unpacking packet from %s device (%s): %s"%(dev.device_type,str(emsg),utils.hexify(data))
 
 try:
     while True:

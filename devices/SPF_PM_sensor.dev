@@ -1,0 +1,11 @@
+name = "Particulate Matter Sensor PPD60PV-T2"
+ID_string_format = "Device Address"
+SPF_BT = 0x03
+
+svgfile = "$(device_dir)/unknown.svg"
+
+SPF_field_bitmask = 0,1,2
+SPF_field_types   = f,f,f
+feeds @= ">0.5um ppm"
+feeds @+ ">1um ppm"
+feeds @+ ">2um ppm"

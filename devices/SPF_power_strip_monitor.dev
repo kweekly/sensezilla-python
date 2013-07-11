@@ -1,0 +1,36 @@
+name = "Power Strip Monitor"
+ID_string_format = "Device Address"
+SPF_BT = 0x01
+
+svgfile = "$(device_dir)/powerstrip.svg"
+
+SPF_field_bitmask = 0,0,0,1,1,1,2,2,2,3,3,3,4,4,4,5,5,5,8
+SPF_field_types   = f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f,b
+
+plugload_groups = 3,3,3,3,3,3
+
+feeds @= "True Power 1"
+feeds @+ "RMS Current 1"
+feeds @+ "RMS Voltage 1"
+
+feeds @+ "True Power 2"
+feeds @+ "RMS Current 2"
+feeds @+ "RMS Voltage 2"
+
+feeds @+ "True Power 3"
+feeds @+ "RMS Current 3"
+feeds @+ "RMS Voltage 3"
+
+feeds @+ "True Power 4"
+feeds @+ "RMS Current 4"
+feeds @+ "RMS Voltage 4"
+
+feeds @+ "True Power 5"
+feeds @+ "RMS Current 5"
+feeds @+ "RMS Voltage 5"
+
+feeds @+ "True Power 6"
+feeds @+ "RMS Current 6"
+feeds @+ "RMS Voltage 6"
+
+feeds @+ "Last packet RSSI (dBm)"
