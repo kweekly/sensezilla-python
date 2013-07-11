@@ -45,6 +45,13 @@ def populate_BT_cache():
             
             dev_BT_cache[bt] = dev
             print "\t0x%02X : "%bt+dev['name']    
+
+def read_packet_timestamp(data):
+    if len(data) >= 8: # minimum for sensor data message
+        if ord(data[1]) == MT_SENSOR_DATA: # this is a sensor data packet
+            (time,) = struct.unpack('<I',data[2:6])
+            return time
+    return None
             
 populate_BT_cache();
 last_scan = time.time()

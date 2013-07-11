@@ -11,16 +11,36 @@ Setup key:
     
     git clone git@github.com:kweekly/sensezilla-python.git
     
+( Compiling protobuf ):
+    wget http://protobuf.googlecode.com/files/protobuf-2.5.0.tar.gz
+    tar xvf protobuf-2.5.0.tar.gz
+    cd protobuf-2.5.0
+    ./configure
+    make (this takes quite a while)
+    cd ../
+    tar cvf protobuf-2.5.0-built.tar protobuf-2.5.0/ 
+    gzip protobuf-2.5.0-built.tar (transfer this to your computer)
+    (continue below)
+    
 Setup protobuf:
-    transfer protobuf-2.4.1-built.tar
+    transfer protobuf-2.4.1-built.tar.gz
     tar xvf protobuf-2.4.1-built
     cd protobuf-2.4.1/
     make install
     cd python
+    python setup.py build
     python setup.py install
+    
+
+    
     
 Setup UART1 (automatically done by code):
     http://www.gigamegablog.com/2012/01/22/beaglebone-coding-101-using-the-serial-and-analog-pins/
+    
+FOR NEWER BB:
+    vim /media/BEAGLEBONE/uEnv.txt
+    optargs=capemgr.enable_partno=BB-UART2
+    
     
 Disable unneeded services:
 
@@ -63,3 +83,10 @@ Set the hostname:
 
 vim /etc/hostname
 hostname <name>
+
+
+
+Set Timezone to California time:
+rm -f /etc/localtime
+ln -s /usr/share/zoneinfo/America/Los_Angeles /etc/localtime
+
