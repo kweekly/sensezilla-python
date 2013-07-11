@@ -23,7 +23,7 @@ from xbee.ieee import XBee
 
 import xbee_relay_IF
 from xbee_utils import *
-
+import sensor_packet
 
 BROADCAST_SINK = float(config.map['xbee_relay']['broadcast_sink'])
 
@@ -39,8 +39,6 @@ init_xbee(ser, xbee);
 
 children_cache = set()
 
-CMD_TIME_SYNC = '\x01';
-
 ts_sent_update = {}
 ts_updated = set()
 ts_noupdate = set()
@@ -50,9 +48,9 @@ def ts_send(addr):
     if addr in ts_noupdate:
         return;
     print "Sending Timesync message to "+addr
-    curtime = time.time();
-    send_to_xbee(addr, CMD_TIME_SYNC + struct.pack('<I',int(curtime)) )
-    ts_sent_update[addr] = curtime;
+    packet = sensor_packet.timesync_packet()
+    send_to_xbee(addr, packet )
+    ts_sent_update[addr] = time.time();
 
 
 def send_to_xbee(dest, data):
@@ -125,10 +123,9 @@ try:
                 
                 #print "<"+source_addr+" : "+utils.hexify(data)
                 children_cache.add(source_addr)
-
-                rtime = 0
-                if len(data) >= 4 and source_addr not in ts_noupdate:
-                    rtime, = struct.unpack('<L',data[0:4])
+                
+                rtime = sensor_packet.read_packet_timestamp(data)
+                if rtime != None:
                     if time.time() - rtime <= MAX_TIMESTAMP_ERROR:
                         if source_addr not in ts_updated:
                             print "Device at "+source_addr+" synced."
