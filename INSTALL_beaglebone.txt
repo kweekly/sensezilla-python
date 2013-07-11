@@ -83,3 +83,10 @@ Set the hostname:
 
 vim /etc/hostname
 hostname <name>
+
+
+
+Set Timezone to California time:
+rm -f /etc/localtime
+ln -s /usr/share/zoneinfo/America/Los_Angeles /etc/localtime
+
