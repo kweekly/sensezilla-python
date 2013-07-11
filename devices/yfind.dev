@@ -1,0 +1,8 @@
+name = "yFind tracked WiFi device"
+ID_string_format = "64-bit MAC address"
+
+svgfile = "$(device_dir)/unknown.svg"
+
+feeds @= "X position (m)"
+feeds @+ "Y position (m)"
+

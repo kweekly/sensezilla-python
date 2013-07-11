@@ -37,7 +37,7 @@ def gen_source_ids(device, devdef=None):
     retval = []
     if driver  == "SMAP":
         for i in range(num):
-            retval.append(str(uuid.uuid5(uuid.UUID(SMAP_UUID), str("%s/%d"%(device.IDstr,i)))))
+            retval.append(str(uuid.uuid5(uuid.UUID(SMAP_UUID), str("%s/r%d"%(device.IDstr,i)))))
         return retval
     elif driver == "CSV":
         for i in range(num):
