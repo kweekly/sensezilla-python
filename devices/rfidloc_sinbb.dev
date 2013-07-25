@@ -3,5 +3,4 @@ ID_string_format = "16-bit Tag ID"
 
 svgfile = "$(device_dir)/unknown.svg"
 
-feeds @= "X position (m)"
-feeds @+ "Y position (m)"
+feeds @= "PLACEHOLDER"

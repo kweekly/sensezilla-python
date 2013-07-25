@@ -181,7 +181,6 @@ def publish_data( keyvals, msg_dbg=''):
                     else:
                         feednums.append(len(dev.feed_names))
                         datapoints.append(f)
-                        
                         dev.feed_names.append(key)
                 try:
                     if (len(datapoints) > 0):
