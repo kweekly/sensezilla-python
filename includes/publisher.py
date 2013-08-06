@@ -67,6 +67,7 @@ def find_device(id_str, create_new=False, device_type=None, source=None, devdef=
                     dev.IDstr = id_str
                     dev.device_type = device_type if device_type else DEFAULT_NEW_DEVICE
                     dev.source_name = source if source else DEFAULT_NEW_SOURCE
+
                     # generate some random places to dump data
                     dev.source_ids = gen_source_ids(dev,devdef)
                     devicedb.insert_device(dev)
@@ -200,7 +201,7 @@ def publish_data(id_str, time, data, feednum=None, devdef=None, device_type=None
     driver = source_struct['driver']
     for i in range(len(feednum)):
         if feednum[i] >= len(dev.feed_names):
-            print "ERROR cannot publish data for feed %d because it is not defined in the definition for %s"%(feednum[i],dev.source_name)
+            print "ERROR cannot publish data for feed %d because it is not defined in the definition for %s"%(feednum[i],dev.device_type)
         elif feednum[i] >= len(dev.source_ids) or dev.source_ids[feednum[i]] == None or dev.source_ids[feednum[i]] == '':
             print "ERROR cannot publish data for feed %d of device %s because it is not defined"%(feednum[i],dev.IDstr)
         else:

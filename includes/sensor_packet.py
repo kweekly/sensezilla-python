@@ -7,6 +7,7 @@ MT_TIMESYNC                = 0x00
 MT_SENSOR_DATA             = 0x01
 MT_CONFIGURE_SENSOR        = 0x02
 MT_ACTUATE                 = 0x03
+MT_RFID_TAG_DETECTED       = 0x04
  
 dev_BT_cache = {}
  
@@ -43,6 +44,7 @@ def populate_BT_cache():
             else:
                 bt = int(btstr);
             
+            dev['_type'] = devf
             dev_BT_cache[bt] = dev
             print "\t0x%02X : "%bt+dev['name']    
 
@@ -73,35 +75,44 @@ def read_packet(data):
     feedidxfound = []
     feedvalsfound = []
     dev = dev_BT_cache[BT]
+    devf = dev['_type']
     if MT == MT_SENSOR_DATA:
         (time,fields) = struct.unpack('<IH',data[0:6])
         data = data[6:]
         feedidx = 0;
+        #print "Fields:%04X data:%s"%(fields,utils.hexify(data))
         # check each bit in <fields> and unpack from <data>
         for b in range(16): 
             if ( fields & (1<<b) != 0):
                 while feedidx < len(dev['_SPFbm']):
-                    if dev['_SPFbm'][feedidx] < b:
+                    #print "b=%d feedidx=%d"%(b,feedidx)
+                    if dev['_SPFbm'][feedidx] > b:
                         print "Error: bitmask algorithm failed (is SPF_field_bitmask specified correctly? and in order?)"
+                        print "\tb=%d (0x%02X), feedidx=%d [%s] SPFbm=%d"%(b,(1<<b),feedidx,dev['feeds'][feedidx],dev['_SPFbm'][feedidx])
                         break;
                     elif dev['_SPFbm'][feedidx] == b:
+                        #print "\t[%s]"%(dev['feeds'][feedidx])
                         feedidxfound += [feedidx]
                         type = dev['_SPFft'][feedidx]
                         tsize = struct.calcsize(type);
                         (val,) = struct.unpack('<'+type,data[0:tsize])
                         data = data[tsize:]
-                        feedvalsfound += [val]
-                    else: # greater than
+                        feedvalsfound += [float(val)]
                         break;
                     
                     feedidx += 1
         
         # debugging
-        print "Data found: t=%10d fields=%04X"%(time,fields)
-        for fi in feedidxfound:
-            print "\tFeed %d : %s => %8.2e"%(fi,dev['feeds'][feedidxfound[fi]],feedvalsfound[fi])
+        #print "Data found: t=%10d fields=%04X"%(time,fields)
+        #for fi in feedidxfound:
+        #    print "\tFeed %d : %s => %8.2e"%(fi,dev['feeds'][feedidxfound[fi]],feedvalsfound[fi])
             
-        return (dev,MT_SENSOR_DATA,time,feedidxfound,feedvalsfound)
+        return (devf,MT_SENSOR_DATA,time,feedidxfound,feedvalsfound)
+    elif MT == MT_RFID_TAG_DETECTED:
+        (time,) = struct.unpack('<I',data[0:4])
+        uidstr = utils.hexify(data[5:])
+        
+        return ('mifare_rfid',MT_RFID_TAG_DETECTED,time,uidstr)
         
 def timesync_packet():
     return '\x00\x00'+struct.pack('<I',time.time())

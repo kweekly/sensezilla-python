@@ -105,6 +105,8 @@ try:
             #print "FRAME "+frame['id']
             if frame['id'] == 'at_response':
                 pass
+            elif frame['id'] == 'status':
+                print "Modem Status is now %02X"%ord(frame['status'][0])
             elif frame['id'] == 'tx_status':
                 pass
             elif frame['id'] == 'rx_long_addr' or frame['id'] == 'rx_io_data_long_addr':

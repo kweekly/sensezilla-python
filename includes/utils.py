@@ -12,7 +12,8 @@ device_timeouts = {}
 
 def str_to_date(dstr):
     try:
-        posix = int(dstr)
+        posix = float(dstr)
+        posix = int(posix)
         return datetime.fromtimestamp(posix)
     except ValueError:pass
     
