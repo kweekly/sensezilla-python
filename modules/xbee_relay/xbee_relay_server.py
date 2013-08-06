@@ -70,19 +70,33 @@ def unpack_several(data, offset=0, numfields=1, datatype='l', endian='<'):
     
 
 def publish(source, data):
-#    print "Publish from %s data %s"%(source,utils.hexify(data))
+    print "Publish from %s data %s"%(source,utils.hexify(data))
     try:
         SPF_result = sensor_packet.read_packet(data)
     except struct.error, emsg:
             print "Error parsing SPF packet from %s device (%s): %s"%(dev.device_type,str(emsg),utils.hexify(data))
 
     if SPF_result != None:
-        (devname,packet_type,time,feedidxfound,feedvalsfound) = SPF_result
-        devdef = utils.read_device(devname);
-        dev = publisher.find_device(source, create_new=True, device_type=devname, devdef=devdef )
-        dev.feed_names = devdef['feeds']
-        publisher.publish_data(source, time, feedvalsfound, feednum=feedidxfound, device_type=devname, dev=dev)
-        
+        if SPF_result[1] == sensor_packet.MT_SENSOR_DATA:
+            (devname,packet_type,time,feedidxfound,feedvalsfound) = SPF_result
+            devdef = utils.read_device(devname);
+            dev = publisher.find_device(source, create_new=True, device_type=devname, devdef=devdef )
+            dev.feed_names = devdef['feeds']
+            publisher.publish_data(source, time, feedvalsfound, feednum=feedidxfound, device_type=devname, dev=dev)
+        elif SPF_result[1] == sensor_packet.MT_RFID_TAG_DETECTED:
+            (devname,packet_type,time,uidstr) = SPF_result
+            devdef = utils.read_device(devname);
+            dev = publisher.find_device(uidstr, create_new=True, device_type=devname, devdef=devdef )
+            sourcestr = "RFID Reader %s"%source
+            if ( sourcestr in dev.feed_names ):
+                idx = dev.feed_names.index(sourcestr)
+                feedidxfound = idx
+            else:
+                dev.feed_names.append(sourcestr)
+                feedidxfound = len(dev.feed_names)-1
+                
+            feedvalfound = 1.0;
+            publisher.publish_data(uidstr, time, feedvalfound, feednum=feedidxfound, device_type=devname, dev=dev)
         
 try:
     while True:

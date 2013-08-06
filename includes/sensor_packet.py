@@ -7,6 +7,7 @@ MT_TIMESYNC                = 0x00
 MT_SENSOR_DATA             = 0x01
 MT_CONFIGURE_SENSOR        = 0x02
 MT_ACTUATE                 = 0x03
+MT_RFID_TAG_DETECTED       = 0x04
  
 dev_BT_cache = {}
  
@@ -107,6 +108,11 @@ def read_packet(data):
         #    print "\tFeed %d : %s => %8.2e"%(fi,dev['feeds'][feedidxfound[fi]],feedvalsfound[fi])
             
         return (devf,MT_SENSOR_DATA,time,feedidxfound,feedvalsfound)
+    elif MT == MT_RFID_TAG_DETECTED:
+        (time,) = struct.unpack('<I',data[0:4])
+        uidstr = utils.hexify(data[5:])
+        
+        return ('mifare_rfid',MT_RFID_TAG_DETECTED,time,uidstr)
         
 def timesync_packet():
     return '\x00\x00'+struct.pack('<I',time.time())

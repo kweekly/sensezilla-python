@@ -204,7 +204,14 @@ while True:
     for (client,msg) in msgs:
         # client=None means it was a UDP packet
         keyvals = parse_tv_string(msg);
-        publish_data(keyvals,msg_dbg = msg)
+        try:
+            if len(msg) > 100: # trim large messages for debug
+                msg = msg[0:100]
+                
+            publish_data(keyvals,msg_dbg = msg)
+        except:
+            import traceback
+            traceback.print_exc();
         
     time.sleep(0.1);
 
