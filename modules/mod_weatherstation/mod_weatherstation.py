@@ -18,10 +18,29 @@ import serial
 import socket
 import traceback
 
+SERIAL_PORTS = config.map['mod_weatherstation']['serial_ports'];
+
 ## Setup and open the serial port connection, import the time and socket modules
 ## for later use
 def connect_serial():
-    ser = serial.Serial(config.map['mod_weatherstation']['serial_port'],int(config.map['mod_weatherstation']['serial_speed']),timeout=1)
+    global serbuf
+    import glob
+    serbuf = ''
+    sports = []
+    for spname in SERIAL_PORTS:
+        sports += glob.glob(spname)
+    
+    if len(sports) <= 0:
+        if print_errors:
+            print "Error: No available serial ports"
+        ser = None
+        return
+    elif len(sports) > 1:
+        if print_errors:
+            print "Warning: >1 serial port avaialable, using first"
+    
+    print "Opening serial port",sports[0]
+    ser = serial.Serial(sports[0],int(config.map['mod_weatherstation']['serial_speed']),timeout=1)
     return ser
     
 ## Define the CRC table to be used in the CRC redundancy check
@@ -60,27 +79,18 @@ crc_table = [
 0x6e17, 0x7e36, 0x4e55, 0x5e74, 0x2e93, 0x3eb2, 0xed1, 0x1ef0,
 ]
 
-## The function just checks if the console is awake and is working right
-## it sends a command Test and assesses whether, the console responds in
-## an appropriate manner if not it returns false
-def checkawake():
-    global ser, sock
-    ser.write("TEST\n")
-    test = ser.readall()
-    if test == '\n\rTEST\n\r':
-            awake = True
-    else:
-            awake = False
-    return awake
 
 ## This function gets the raw data from the console by sending the command
 ## LOOP 1, which returns one LOOP packet, 99 bytes long. It only writes this command if the console is assessed to be awake and working
 def gethexdata():
-    global ser, sock
+    global ser, sock, serbuf
     ser.write("LOOP 1\n")
     time_stamp = time.time() ## The function gets the time of the readings over here since asking the time of the consoel would be inaccurate itself, as the console would take time to respond
-    Data = ser.readall()## The incoming bytes are read from the buffer
-    Data = ['%02x'% ord(b) for b in Data] ## The raw data bytes are converted into a list of hex strings
+    Data = ser.read(2048)## The incoming bytes are read from the buffer
+    #print "RCV",utils.hexify(Data)
+    serbuf += Data
+    
+    Data = ['%02x'% ord(b) for b in serbuf] ## The raw data bytes are converted into a list of hex strings
     testData = Data[1:] ## in order to run the CRC check the the first hex string the Acknowledge code (0x6) is removed from the Data
     b = accuracytest(testData) ## The accuracy test is run on the data and for the moment the result is just printed. 
     #print b ## Ideally once the CRC check works correctly I would like to include an if statement here which re-requests the data if the packet is assessed to be inaccurate
@@ -89,21 +99,23 @@ def gethexdata():
     
 ## This function was used to find the 'LOO' in the Data packet so that we may extract the relevant data from the hex list based on its offset from these bytes 
 def findstart(Data):
-	found = False
-	x = 0
-	while found == False:
-		if (Data[x] == '4c') & (Data[x+1] == '4f') & (Data[x+2] == '4f'):
-			found == True
-			return x
-		else:
-			x = x+1 ## The function increments the index by one each time the requirment is not satisfied
-			found = False
-            
+    x = 0
+    while x < len(Data)-2:
+        if (Data[x] == '4c') & (Data[x+1] == '4f') & (Data[x+2] == '4f'):
+            return x
+        x = x + 1
+        
+    return None
+    
 ## There is not much too this function it just extracts the data we require from the data returned by the gethexdata function
 def extractdata():
-    global ser, sock
+    global ser, sock, serbuf
     data = gethexdata()
     x = findstart(data[0])
+    if not x:
+        print "Start not found, throwing out",data[0]
+        return None
+        
     pressure = data[0][x+8] + data[0][x+7]
     in_temp = data[0][x+10]+data[0][x+9]
     in_humidity = data[0][x+11]
@@ -113,6 +125,11 @@ def extractdata():
     out_humidity = data[0][x+33]
     solar_radiation = data[0][x+45]+data[0][x+44]
     CRC = data[0][x+98]+data[0][x+97]
+    if ( len(serbuf) > 98 ):
+        serbuf = serbuf[97:]
+    else:
+        serbuf = ''
+        
     time_stamp = data[1]
     newData = [pressure,in_temp,in_humidity,out_temp,wind_speed,wind_direct,out_humidity,solar_radiation,time_stamp]
     return newData
@@ -146,10 +163,10 @@ def accuracytest(hexlist):
         return accurate
 
 def shift8bit(crc):
-	string = hex(crc)
-	newstring = string[4:] + '00'
-	ncrc = int(newstring,16)
-	return ncrc
+    string = hex(crc)
+    newstring = string[4:] + '00'
+    ncrc = int(newstring,16)
+    return ncrc
 
 def connecttoserver():
     try:
@@ -161,17 +178,6 @@ def connecttoserver():
     except socket.error:
         return None
 
-def sendtoserver():
-    global ser, sock
-    s = connecttoserver()
-    try:
-             c = presentdata(convertdata(extractdata(ser)))
-             print c
-             s.send(c)
-    except socket.error:
-            s.close()
-            sock = None
-                
 
 UPDATE_RATE = float(config.map['mod_weatherstation']['update_rate'])
                 
@@ -179,24 +185,15 @@ UPDATE_RATE = float(config.map['mod_weatherstation']['update_rate'])
 ser = connect_serial();
 sock = connecttoserver();
 
-console_dbg_latch = False
 
 while True:
     # assume serial port is always connected
-    if checkawake():
-        if console_dbg_latch:
-            print "Console awake"
-            console_dbg_latch = False
-            
-        data = extractdata()
+    data = extractdata()
+    if data:
         tlv_string = presentdata(convertdata(data))
-    else:
-        if not console_dbg_latch:
-            print "Error: Console not awake"
-            console_dbg_latch = True
-        time.sleep(0.5);
+    else: # no need for long sleep - taken care of by serial port
+        time.sleep(0.01)
         continue
-    
     
     if sock:
         try:
