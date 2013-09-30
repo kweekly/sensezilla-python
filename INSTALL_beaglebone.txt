@@ -72,6 +72,7 @@ network_key = <key>
 Set to start on startup:
 
 transfer sensezilla_initd to /etc/init.d/sensezilla
+chmod +x /etc/init.d/sensezilla
 update-rc.d sensezilla defaults
 
 

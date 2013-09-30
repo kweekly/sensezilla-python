@@ -3,26 +3,22 @@
 import os,sys, re
 import time
 from datetime import datetime, timedelta
-# Gen3 common modules
-if 'SENSEZILLA_DIR' not in os.environ:
-    print "Note: SENSEZILLA_DIR not provided. Assuming ../../"
-    os.environ['SENSEZILLA_DIR'] = "../.."
 
-sys.path.insert(0,os.environ['SENSEZILLA_DIR']+"/includes");
-import config
-import utils
-import unixIPC
+
 import struct
 import serial
 
 import socket
 import traceback
 
-SERIAL_PORTS = config.map['mod_weatherstation']['serial_ports'];
+SERIAL_SPEED = 19200
+UPDATE_RATE = 10
+
+SERIAL_PORTS = ["/dev/ttyUSB*"];
 
 ## Setup and open the serial port connection, import the time and socket modules
 ## for later use
-def connect_serial(print_errors=False):
+def connect_serial(print_errors=True):
     global serbuf
     import glob
     serbuf = ''
@@ -40,7 +36,7 @@ def connect_serial(print_errors=False):
             print "Warning: >1 serial port avaialable, using first"
     
     print "Opening serial port",sports[0]
-    ser = serial.Serial(sports[0],int(config.map['mod_weatherstation']['serial_speed']),timeout=1)
+    ser = serial.Serial(sports[0],SERIAL_SPEED,timeout=1)
     return ser
     
 ## Define the CRC table to be used in the CRC redundancy check
@@ -114,7 +110,6 @@ def extractdata():
     x = findstart(data[0])
     if not x:
         print "Start not found, throwing out",data[0]
-        serbuf = ''
         return None
         
     pressure = data[0][x+8] + data[0][x+7]
@@ -174,15 +169,15 @@ def shift8bit(crc):
 def connecttoserver():
     try:
         s = socket.socket()
-        host = config.map['global']['host']
-        port = int(config.map['tv_relay']['port'])
+        host = "sensezilla.berkeley.edu"
+        port = int(7601)
         s.connect((host,port))
         return s
     except socket.error:
         return None
 
 
-UPDATE_RATE = float(config.map['mod_weatherstation']['update_rate'])
+UPDATE_RATE = float(UPDATE_RATE)
                 
 ## Call on the previously defined function and define a serial object ser
 ser = connect_serial();
