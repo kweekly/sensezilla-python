@@ -140,7 +140,7 @@ def extractdata():
 ## humidity is divided by 1000 (based on the documentation)
 def convertdata(data):
                 newData = []
-                for i in range (0,8):
+                for i in range (0,9):
                         newData.append(int(data[i],16))
                 newData.append(data[-1])
                 newData[1] = float(newData[1])/10
@@ -150,7 +150,7 @@ def convertdata(data):
                 return newData
 ## The data obtained from convert data is simply placed in a string
 def presentdata(newData):
-        string = "driver/WeatherStation/device_id/VantagePro2_Berkeley/timestamp/{}/Pressure/{}/Indoor Temperature/{}/Indoor Humidity/{}/Outdoor Temperature/{}/Wind Speed/{}/Wind Direction/{}/Outdoor Humidity/{}/Solar Radiation/{}/Rain Rate/{}\n".format(newData[-1],newData[0],newData[1],newData[2],newData[3],newData[4],newData[5],newData[6],newData[7])
+        string = "driver/WeatherStation/device_id/VantagePro2_Berkeley/timestamp/{}/Pressure/{}/Indoor Temperature/{}/Indoor Humidity/{}/Outdoor Temperature/{}/Wind Speed/{}/Wind Direction/{}/Outdoor Humidity/{}/Solar Radiation/{}/Rain Rate/{}\n".format(newData[-1],newData[0],newData[1],newData[2],newData[3],newData[4],newData[5],newData[6],newData[7],newData[8])
         return string
 ## This function is supposed to check whether there are any errors in the transmission of data from the console to the pc it returns True or False based on whether
 ## the data is accurate, the formula is used to calculate the CRC checksum has been obtained from the documentation
