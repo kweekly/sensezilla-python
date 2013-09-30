@@ -120,6 +120,7 @@ def extractdata():
     wind_direct = data[0][x+17]+data[0][x+16]
     out_humidity = data[0][x+33]
     solar_radiation = data[0][x+45]+data[0][x+44]
+    rain_rate = data[0][x+42] + data[0][x+41]
     CRC = data[0][x+98]+data[0][x+97]
     if ( len(serbuf) > 98 ):
         serbuf = serbuf[97:]
@@ -127,7 +128,7 @@ def extractdata():
         serbuf = ''
         
     time_stamp = data[1]
-    newData = [pressure,in_temp,in_humidity,out_temp,wind_speed,wind_direct,out_humidity,solar_radiation,time_stamp]
+    newData = [pressure,in_temp,in_humidity,out_temp,wind_speed,wind_direct,out_humidity,solar_radiation,rain_rate,time_stamp]
     return newData
 
 ## The data extracted from the hexdata is now converted from hex-strings to integers and the raw values of temperature are divided by 10, while the raw value of
@@ -140,10 +141,11 @@ def convertdata(data):
                 newData[1] = float(newData[1])/10
                 newData[3] = float(newData[3])/10
                 newData[0] = float(newData[0])/1000
+                newData[8] = float(newData[8])/100
                 return newData
 ## The data obtained from convert data is simply placed in a string
 def presentdata(newData):
-        string = "driver/WeatherStation/device_id/VantagePro2_Berkeley/timestamp/{}/Pressure/{}/Indoor Temperature/{}/Indoor Humidity/{}/Outdoor Temperature/{}/Wind Speed/{}/Wind Direction/{}/Outdoor Humidity/{}/Solar Radiation/{}\n".format(newData[-1],newData[0],newData[1],newData[2],newData[3],newData[4],newData[5],newData[6],newData[7])
+        string = "driver/WeatherStation/device_id/VantagePro2_Berkeley/timestamp/{}/Pressure/{}/Indoor Temperature/{}/Indoor Humidity/{}/Outdoor Temperature/{}/Wind Speed/{}/Wind Direction/{}/Outdoor Humidity/{}/Solar Radiation/{}/Rain Rate/{}\n".format(newData[-1],newData[0],newData[1],newData[2],newData[3],newData[4],newData[5],newData[6],newData[7])
         return string
 ## This function is supposed to check whether there are any errors in the transmission of data from the console to the pc it returns True or False based on whether
 ## the data is accurate, the formula is used to calculate the CRC checksum has been obtained from the documentation
