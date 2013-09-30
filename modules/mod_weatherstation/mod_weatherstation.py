@@ -114,6 +114,7 @@ def extractdata():
     x = findstart(data[0])
     if not x:
         print "Start not found, throwing out",data[0]
+        serbuf = ''
         return None
         
     pressure = data[0][x+8] + data[0][x+7]
