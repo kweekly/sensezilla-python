@@ -71,41 +71,6 @@ def unpack_several(data, offset=0, numfields=1, datatype='l', endian='<'):
     return struct.unpack_from(endian+datatype*numfields,data,offset)
     
 
-def publish(source, data):
-    print "Publish from %s data %s"%(source,utils.hexify(data))
-    try:
-        SPF_result = sensor_packet.read_packet(data)
-    except struct.error, emsg:
-            print "Error parsing SPF packet from %s device (%s): %s"%(dev.device_type,str(emsg),utils.hexify(data))
-
-    if SPF_result != None:
-        if SPF_result[1] == sensor_packet.MT_SENSOR_DATA:
-            (devname,packet_type,timeval,feedidxfound,feedvalsfound) = SPF_result
-            devdef = utils.read_device(devname);
-            dev = publisher.find_device(source, create_new=True, device_type=devname, devdef=devdef )
-            dev.feed_names = devdef['feeds']
-            if (timeval < INVALID_TIME_THRESH):
-                timeval = int(time.time())
-                
-            publisher.publish_data(source, timeval, feedvalsfound, feednum=feedidxfound, device_type=devname, dev=dev)
-        elif SPF_result[1] == sensor_packet.MT_RFID_TAG_DETECTED:
-            (devname,packet_type,timeval,uidstr) = SPF_result
-            devdef = utils.read_device(devname);
-            dev = publisher.find_device(uidstr, create_new=True, device_type=devname, devdef=devdef )
-            sourcestr = "RFID Reader %s"%source
-            if ( sourcestr in dev.feed_names ):
-                idx = dev.feed_names.index(sourcestr)
-                feedidxfound = idx
-            else:
-                dev.feed_names.append(sourcestr)
-                feedidxfound = len(dev.feed_names)-1
-            
-            if (timeval < INVALID_TIME_THRESH):
-                timeval = int(time.time())
-                
-            feedvalfound = 1.0;
-            publisher.publish_data(uidstr, timeval, feedvalfound, feednum=feedidxfound, device_type=devname, dev=dev)
-        
 try:
     while True:
         if server.connected:
@@ -115,7 +80,7 @@ try:
                     cmd_msg = xbee_relay_cmd_pb2.XBee_Relay_Cmd()
                     cmd_msg.ParseFromString(msg);
                     if ( cmd_msg.command == xbee_relay_cmd_pb2.XBee_Relay_Cmd.PUBLISH_DATA ):
-                        publish(cmd_msg.source, cmd_msg.data)
+                        sensor_packet.publish(cmd_msg.source, cmd_msg.data)
                     elif ( cmd_msg.command == xbee_relay_cmd_pb2.XBee_Relay_Cmd.FORWARD_TO_XBEE ):
                         seq_no = sendToXbee(cmd_msg.to,cmd_msg.data)
                         client_response_map[seq_no] = (client,time.time())

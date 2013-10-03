@@ -14,7 +14,9 @@ import utils
 import publisher
 import socket
 
-PORT = int(config.map['tv_relay']['port'])
+import sensor_packet
+
+PORT = int(config.map['spf_relay']['port'])
 
 tcp_socket = None
 udp_socket = None
@@ -22,7 +24,7 @@ udp_socket = None
 connected = False
 clients = []
 
-class TVClient:
+class SPFClient:
     def __init__(self,sock,addr):
         self.sock = sock
         self.address = addr
@@ -55,7 +57,7 @@ def tick():
     
     try:
         new_conn,addr = tcp_socket.accept()
-        clients.append(TVClient(new_conn,addr))
+        clients.append(SPFClient(new_conn,addr))
     except socket.error, (errno,msg):
         if errno != 10035 and errno != 11 : # Oh shiiiii server socket died (otherwise its just a "non-block" error)
             print "ERROR: Server socket gave problem "+msg
@@ -91,7 +93,7 @@ def tick():
         for client in clients:
             try :
                 str = client.sock.recv(4096);
-                print str
+#                print str
                 if not str: # probably disconnected or something
                     try: # try to disconnect
                         client.sock.close();
@@ -125,24 +127,6 @@ def tick():
                 
     return retval;
                 
-def parse_tv_string(str):
-    keyvals = {}
-    pts = str.split('/');
-    for i in reversed(range(len(pts))):
-        if len(pts[i]) == 0 : pts.pop(i);
-    
-    if len(pts) <= 1:
-        return keyvals
-    
-    if len(pts) % 2 != 0:
-        val = pts.pop(len(pts)-1)
-        print "WARNING: Last value '%s' of TV string discarded (odd number of fields)."%val
-    
-    for i in range(0,len(pts),2):
-        #print pts[i],pts[i+1]
-        keyvals[pts[i]] = pts[i+1];
-        
-    return keyvals
     
 def publish_data( keyvals, msg_dbg=''):    
     if keyvals != None  and 'driver' in keyvals and 'device_id' in keyvals:
@@ -203,16 +187,12 @@ while True:
     msgs = tick()
     for (client,msg) in msgs:
         # client=None means it was a UDP packet
-        keyvals = parse_tv_string(msg);
         try:
-            if len(msg) > 100: # trim large messages for debug
-                msg = msg[0:100]
-                
-            publish_data(keyvals,msg_dbg = msg)
+            sensor_packet.publish("AAAAAA",msg);
+            publisher.tick();
         except:
             import traceback
             traceback.print_exc();
         
-    publisher.tick();
     time.sleep(0.1);
 
