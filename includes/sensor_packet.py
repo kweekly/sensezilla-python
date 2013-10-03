@@ -125,7 +125,7 @@ def publish(source, data):
     try:
         SPF_result = read_packet(data)
     except struct.error, emsg:
-            print "Error parsing SPF packet from %s device (%s): %s"%(dev.device_type,str(emsg),utils.hexify(data))
+            print "Error parsing SPF packet from %s device (%s): %s"%(source,str(emsg),utils.hexify(data))
 
     if SPF_result != None:
         if SPF_result[1] == MT_SENSOR_DATA:
