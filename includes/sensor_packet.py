@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from datetime import datetime, timedelta
 import time, os, sys, struct
-import config, utils, publisher
+import config, utils
 
 MT_TIMESYNC                = 0x00
 MT_SENSOR_DATA             = 0x01
@@ -50,10 +50,16 @@ def populate_BT_cache():
 
 def read_packet_timestamp(data):
     if len(data) >= 8: # minimum for sensor data message
-        if ord(data[1]) == MT_SENSOR_DATA: # this is a sensor data packet
+        if ord(data[1]) == MT_SENSOR_DATA or ord(data[1]) == MT_RFID_TAG_DETECTED: # this is a sensor data packet
             (time,) = struct.unpack('<I',data[2:6])
             return time
     return None
+    
+def set_packet_timestamp(data, ts):
+    if len(data) >= 8:
+        if ord(data[1]) == MT_SENSOR_DATA or ord(data[1]) == MT_RFID_TAG_DETECTED:
+            return data[0:2] + struct.pack('<I',int(ts)) + data[6:]
+    return data            
             
 populate_BT_cache();
 last_scan = time.time()
@@ -121,6 +127,7 @@ def timesync_packet():
     return '\x00\x00'+struct.pack('<I',time.time())
     
 def publish(source, data):
+    import publisher
     print "Publish from %s data %s"%(source,utils.hexify(data))
     try:
         SPF_result = read_packet(data)
