@@ -34,6 +34,8 @@ client_response_map = {}
 
 CACHE_TIMEOUT = 100
 
+INVALID_TIME_THRESH = 946706400; # Jan 1 2000
+
 
 def broadcast(data):
     global global_seq_no
@@ -78,13 +80,16 @@ def publish(source, data):
 
     if SPF_result != None:
         if SPF_result[1] == sensor_packet.MT_SENSOR_DATA:
-            (devname,packet_type,time,feedidxfound,feedvalsfound) = SPF_result
+            (devname,packet_type,timeval,feedidxfound,feedvalsfound) = SPF_result
             devdef = utils.read_device(devname);
             dev = publisher.find_device(source, create_new=True, device_type=devname, devdef=devdef )
             dev.feed_names = devdef['feeds']
-            publisher.publish_data(source, time, feedvalsfound, feednum=feedidxfound, device_type=devname, dev=dev)
+            if (timeval < INVALID_TIME_THRESH):
+                timeval = int(time.time())
+                
+            publisher.publish_data(source, timeval, feedvalsfound, feednum=feedidxfound, device_type=devname, dev=dev)
         elif SPF_result[1] == sensor_packet.MT_RFID_TAG_DETECTED:
-            (devname,packet_type,time,uidstr) = SPF_result
+            (devname,packet_type,timeval,uidstr) = SPF_result
             devdef = utils.read_device(devname);
             dev = publisher.find_device(uidstr, create_new=True, device_type=devname, devdef=devdef )
             sourcestr = "RFID Reader %s"%source
@@ -94,9 +99,12 @@ def publish(source, data):
             else:
                 dev.feed_names.append(sourcestr)
                 feedidxfound = len(dev.feed_names)-1
+            
+            if (timeval < INVALID_TIME_THRESH):
+                timeval = int(time.time())
                 
             feedvalfound = 1.0;
-            publisher.publish_data(uidstr, time, feedvalfound, feednum=feedidxfound, device_type=devname, dev=dev)
+            publisher.publish_data(uidstr, timeval, feedvalfound, feednum=feedidxfound, device_type=devname, dev=dev)
         
 try:
     while True:

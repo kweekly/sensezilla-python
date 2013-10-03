@@ -91,7 +91,7 @@ def tick():
         for client in clients:
             try :
                 str = client.sock.recv(4096);
-#                print str
+                #print str
                 if not str: # probably disconnected or something
                     try: # try to disconnect
                         client.sock.close();
@@ -213,5 +213,6 @@ while True:
             import traceback
             traceback.print_exc();
         
+    publisher.tick();
     time.sleep(0.1);
 

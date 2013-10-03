@@ -91,15 +91,18 @@ def read_packet(data):
                         print "\tb=%d (0x%02X), feedidx=%d [%s] SPFbm=%d"%(b,(1<<b),feedidx,dev['feeds'][feedidx],dev['_SPFbm'][feedidx])
                         break;
                     elif dev['_SPFbm'][feedidx] == b:
-                        #print "\t[%s]"%(dev['feeds'][feedidx])
-                        feedidxfound += [feedidx]
-                        type = dev['_SPFft'][feedidx]
-                        tsize = struct.calcsize(type);
-                        (val,) = struct.unpack('<'+type,data[0:tsize])
-                        data = data[tsize:]
-                        feedvalsfound += [float(val)]
-                        break;
-                    
+                        while feedidx < len(dev['_SPFbm']) and dev['_SPFbm'][feedidx] == b:
+                            #print "\t[%s]"%(dev['feeds'][feedidx])
+                            feedidxfound += [feedidx]
+                            type = dev['_SPFft'][feedidx]
+                            tsize = struct.calcsize(type);
+                            (val,) = struct.unpack('<'+type,data[0:tsize])
+                            data = data[tsize:]
+                            feedvalsfound += [float(val)]
+                            feedidx += 1
+                            
+                        break
+                        
                     feedidx += 1
         
         # debugging
@@ -110,7 +113,7 @@ def read_packet(data):
         return (devf,MT_SENSOR_DATA,time,feedidxfound,feedvalsfound)
     elif MT == MT_RFID_TAG_DETECTED:
         (time,) = struct.unpack('<I',data[0:4])
-        uidstr = utils.hexify(data[5:])
+        uidstr = utils.hexify(data[4:])
         
         return ('mifare_rfid',MT_RFID_TAG_DETECTED,time,uidstr)
         
