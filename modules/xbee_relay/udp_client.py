@@ -20,7 +20,6 @@ import xbee_relay_cmd_pb2
 import xbee_relay_resp_pb2
 
 import xbee_relay_IF
-from xbee_utils import *
 import sensor_packet
 
 xbee_relay_IF.connect();
