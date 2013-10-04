@@ -92,7 +92,7 @@ while True:
     # process connection w/ remotes
     msgs = tick()
     for addr,chunk in msgs:
-        print "<",addr,utils.hexify(chunk)
+        #print "<",addr,utils.hexify(chunk)
         chunk = sensor_packet.set_packet_timestamp(chunk,time.time())
         
         if xbee_relay_IF.connected():
