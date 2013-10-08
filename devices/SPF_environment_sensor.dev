@@ -4,8 +4,8 @@ SPF_BT = 0x02
 
 svgfile = "$(device_dir)/unknown.svg"
 
-SPF_field_bitmask = 0,1,2,3,4,4,4,5,5,5,6,8,9,10
-SPF_field_types   = f,f,f,f,f,f,f,f,f,f,b,B,B,B
+SPF_field_bitmask = 0,1,2,3,4,4,4,5,5,5,6,8,9,10,11,12
+SPF_field_types   = f,f,f,f,f,f,f,f,f,f,b,B,B,B,B,B
 
 feeds @= "Temperature (deg C)"
 feeds @+ "Rel. Humidity (%)"
@@ -21,3 +21,5 @@ feeds @+ "Last packet RSSI (dBm)"
 feeds @+ "Occupancy State Changed"
 feeds @+ "Orientation Changed"
 feeds @+ "Light level changed"
+feeds @+ "Door Sensor Status"
+feeds @+ "RFID Number of tags"
