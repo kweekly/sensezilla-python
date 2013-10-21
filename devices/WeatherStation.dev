@@ -1,0 +1,13 @@
+name = "Vantage Pro 2 Weather Station"
+ID_string_format = "Location"
+
+svgfile = "$(device_dir)/unknown.svg"
+
+feeds @= "Pressure"
+feeds @+ "Indoor Temperature"
+feeds @+ "Indoor Humidity"
+feeds @+ "Outdoor Temperature"
+feeds @+ "Wind Speed"
+feeds @+ "Wind Direction"
+feeds @+ "Outdoor Humidity"
+feeds @+ "Solar Radiation"

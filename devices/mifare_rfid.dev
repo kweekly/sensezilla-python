@@ -1,0 +1,6 @@
+name = "MiFare RFID Tag"
+ID_string_format = "Tag ID"
+
+svgfile = "$(device_dir)/unknown.svg"
+
+feeds @= "PLACEHOLDER"

@@ -55,6 +55,7 @@ def tick():
     
     try:
         new_conn,addr = tcp_socket.accept()
+        new_conn.setblocking(0)
         clients.append(TVClient(new_conn,addr))
     except socket.error, (errno,msg):
         if errno != 10035 and errno != 11 : # Oh shiiiii server socket died (otherwise its just a "non-block" error)

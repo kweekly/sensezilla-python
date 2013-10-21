@@ -8,8 +8,17 @@ MT_SENSOR_DATA             = 0x01
 MT_CONFIGURE_SENSOR        = 0x02
 MT_ACTUATE                 = 0x03
 MT_RFID_TAG_DETECTED       = 0x04
+MT_RECORDSTORE_DATA        = 0x05
+MT_DEVICE_IDENTIFIER       = 0x06
+
+ID_TYPE_BIN_ARBITRARY = 0x00
+ID_TYPE_BIN_MAC_80211 = 0x01
+ID_TYPE_ASCII_ARBITRARY = 0x40
+ID_TYPE_ASCII_TYPE_NO   = 0x41
  
 dev_BT_cache = {}
+
+
  
 def populate_BT_cache():
     global dev_BT_cache
@@ -46,7 +55,7 @@ def populate_BT_cache():
             
             dev['_type'] = devf
             dev_BT_cache[bt] = dev
-            print "\t0x%02X : "%bt+dev['name']    
+            print "\t0x%02X : "%bt+dev['name']
 
 def read_packet_timestamp(data):
     if len(data) >= 8: # minimum for sensor data message
@@ -83,7 +92,7 @@ def read_packet(data):
     dev = dev_BT_cache[BT]
     devf = dev['_type']
     if MT == MT_SENSOR_DATA:
-        (time,fields) = struct.unpack('<IH',data[0:6])
+        (ptime,fields) = struct.unpack('<IH',data[0:6])
         data = data[6:]
         feedidx = 0;
         #print "Fields:%04X data:%s"%(fields,utils.hexify(data))
@@ -112,23 +121,73 @@ def read_packet(data):
                     feedidx += 1
         
         # debugging
-        #print "Data found: t=%10d fields=%04X"%(time,fields)
+        #print "Data found: t=%10d fields=%04X"%(ptime,fields)
         #for fi in feedidxfound:
         #    print "\tFeed %d : %s => %8.2e"%(fi,dev['feeds'][feedidxfound[fi]],feedvalsfound[fi])
             
-        return (devf,MT_SENSOR_DATA,time,feedidxfound,feedvalsfound)
+        return (devf,MT_SENSOR_DATA,ptime,feedidxfound,feedvalsfound)
     elif MT == MT_RFID_TAG_DETECTED:
-        (time,) = struct.unpack('<I',data[0:4])
+        (ptime,) = struct.unpack('<I',data[0:4])
         uidstr = utils.hexify(data[4:])
         
-        return ('mifare_rfid',MT_RFID_TAG_DETECTED,time,uidstr)
+        return ('mifare_rfid',MT_RFID_TAG_DETECTED,ptime,uidstr)
+    elif MT == MT_RECORDSTORE_DATA:
+        records = []
+        record_types = {}
+        i = 0;
+        while i < len(data):
+            chb = ord(data[i])
+            if chb & 0x80 != 0:
+                plen = chb & 0x7F;
+                record_types[plen] = data[i+1:i+1+plen]
+                records.append(record_types[plen])
+                i = i+1+plen
+                #print "New %d byte record: %s"%(plen,utils.hexify(record_types[plen]))
+            else:
+                plen = chb;
+                if plen not in record_types:
+                    print "Error decompressing recordstore, no record type for len=%d"%plen
+                    
+                record = ''
+                nDiff = int((plen+7)/8);
+                db = i + 1 + nDiff;
+                for i2 in range(plen):
+                    if ord(data[i + 1 + int(i2)/8]) & (1<<(i2%8)) != 0:
+                        record += data[db]
+                        db += 1;
+                    else:
+                        if plen in record_types:
+                            record += record_types[plen][i2]
+                        else:
+                            record += chr(0xFF)
+                        
+                if plen in record_types:
+                    #print "Record: "+utils.hexify(record)
+                    records.append(record)
+
+                    
+                i = db    
+                    
+    
+        return (devf,MT_RECORDSTORE_DATA,records)
+    elif MT == MT_DEVICE_IDENTIFIER:
+        idtype = ord(data[0])
+        if idtype >= 0x00 and idtype <= 0x3F:
+            if idtype == ID_TYPE_BIN_MAC_80211:
+                idstr = ':'.join(['%02x'%ord(c) for c in data[1:]])
+            else:
+                idstr = utils.hexify(data[1:])
+        elif idtype >= 0x40 and idtype <= 0x7F:
+            idstr = data[1:]        
+        
+        return (devf,MT_DEVICE_IDENTIFIER,idtype,idstr)
         
 def timesync_packet():
     return '\x00\x00'+struct.pack('<I',time.time())
     
 def publish(source, data):
     import publisher
-    print "Publish from %s data %s"%(source,utils.hexify(data))
+    #print "Publish from %s data %s"%(source,utils.hexify(data))
     try:
         SPF_result = read_packet(data)
     except struct.error, emsg:
@@ -155,3 +214,5 @@ def publish(source, data):
                 
             feedvalfound = 1.0;
             publisher.publish_data(uidstr, time, feedvalfound, feednum=feedidxfound, device_type=devname, dev=dev)
+        else:
+            print "SPF type %02x not supported for direct publishing"%(SPF_result[1])
