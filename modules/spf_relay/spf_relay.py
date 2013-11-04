@@ -34,6 +34,9 @@ class TVClient:
         self.UID = None
         
 
+def send_message(dest_client, message):
+    dest_client.txbuffer += escape(message) + "\x0A"
+        
 def unescape(str):
     ret = ''
     escapenext = False
@@ -65,7 +68,17 @@ def reconnect(print_errors = False):
         
     if tcp_socket == None:
         tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM);
-        tcp_socket.bind(('',PORT))
+        try:
+            tcp_socket.bind(('',PORT))
+        except socket.error, (errno,msg):
+            if errno != 98 :
+                raise
+            else:
+                print "Socket still in use"
+                time.sleep(1)
+                tcp_socket = None
+                return
+                
         tcp_socket.listen(5)
         tcp_socket.setblocking(0)
         clients = []
@@ -76,16 +89,17 @@ def tick():
     
     retval = []
     
-    try:
-        new_conn,addr = tcp_socket.accept()
-        new_conn.setblocking(0)
-        client = TVClient(new_conn,addr)
-        clients.append(client)
-        
-    except socket.error, (errno,msg):
-        if errno != 10035 and errno != 11 : # Oh shiiiii server socket died (otherwise its just a "non-block" error)
-            print "ERROR: Server socket gave problem "+msg
-            tcp_socket = None
+    if tcp_socket:
+        try: 
+            new_conn,addr = tcp_socket.accept()
+            new_conn.setblocking(0)
+            client = TVClient(new_conn,addr)
+            clients.append(client)
+            
+        except socket.error, (errno,msg):
+            if errno != 10035 and errno != 11 : # Oh shiiiii server socket died (otherwise its just a "non-block" error)
+                print "ERROR: Server socket gave problem "+msg
+                tcp_socket = None
     
  
     if tcp_socket:
@@ -160,9 +174,14 @@ while True:
                 else:
                     records = [msg]
                 
-                tm = sensor_packet.read_packet_timestamp(records[-1])
+                for idx in range(len(records)-1,-1,-1):
+                    last_rec = records[idx]
+                    tm = sensor_packet.read_packet_timestamp(last_rec)
+                    if tm:
+                        break;                    
+                
                 if tm:
-                    if abs(tm - time.time()) > MAX_TIMESTAMP_ERROR:
+                    if abs(time.time() - tm) > MAX_TIMESTAMP_ERROR:
                         offset = tm - time.time()
                         for midx in range(len(records)):
                             tm2 = sensor_packet.read_packet_timestamp(records[midx])
@@ -171,19 +190,27 @@ while True:
                                 
                         client.desynched = True
                     else:
-                        print "Client at %s synchronized"%uid
+                        if client.desynched:
+                            print "Client at %s synchronized"%uid
                         client.desynched = False
                 
-                print "%d records from %s"%(len(records),uid)
                 for m in records:
-                    sensor_packet.publish(uid,m)
+                    if sensor_packet.read_packet_type(m) == sensor_packet.MT_DEVICE_IDENTIFIER:
+                        r = sensor_packet.read_packet(m)
+                        uid = r[3]
+                        
+                print "%d records from %s"%(len(records),uid)
+                
+                for m in records:
+                    if sensor_packet.read_packet_type(m) != sensor_packet.MT_DEVICE_IDENTIFIER:
+                        sensor_packet.publish(uid,m)
         except:
             import traceback
             traceback.print_exc();
     
     for client in clients:
         if client.desynched:
-            client.txbuffer = sensor_packet.timesync_packet()
+            send_message(client, sensor_packet.timesync_packet())
             client.desynched = False
     
     time.sleep(0.01);

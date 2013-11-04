@@ -20,12 +20,13 @@ Usage: fetcher.py [list | fetch | delete]
     fetch [--plot fname.png] [--from <time>] [--to <time>] <source name> <device identifier> <output CSV>
         Fetch data to CSV, default 1 day history, or by given times
         
-    delete : <device type> <device identifier> [--nopretend] [--source <source name>] [--dataonly] [--devonly]
+    delete : <device type> <device identifier> [--nopretend] [--source <source name>] [--dataonly] [--devonly] [--prunedev]
         Delete all streams for device ( if source supports it ). Can use '%' and '_' for wildcards.
         --source restricts to a certain source
         --nopretend flag is needed to actually commit the changes
         --dataonly says only to delete data files/streams
         --devonly says to only delete metadata
+        --prunedev removes any streams which don't have a match in device defn.
 """
 elif sys.argv[1] == 'list':
     for file in os.listdir(config.map['global']['source_dir']):
@@ -72,32 +73,13 @@ elif sys.argv[1] == 'delete':
         print "Cannot connect to devicedb!"
         sys.exit(1);
         
-    source = None    
-    try:
-        i = sys.argv.index('--source')
-        source = sys.argv[i]
-        postgresops.check_evil(source)
-        sys.argv = sys.argv[0:i] + sys.argv[i+2:]
-    except ValueError:pass    
-    
-    pretend = True
-    devonly = False
-    dataonly = False
-    try:
-        i = sys.argv.index('--nopretend')
-        pretend = False
-        sys.argv = sys.argv[0:i] + sys.argv[i+1:]
-    except ValueError:pass
-    try:
-        i = sys.argv.index('--devonly')
-        devonly = True
-        sys.argv = sys.argv[0:i] + sys.argv[i+1:]
-    except ValueError:pass
-    try:
-        i = sys.argv.index('--dataonly')
-        dataonly = True
-        sys.argv = sys.argv[0:i] + sys.argv[i+1:]
-    except ValueError:pass
+    (present,val,sys.argv) = utils.check_arg(sys.argv,"--source",nvals=1)
+    source = val if present else None
+    (nopretend,val,sys.argv) = utils.check_arg(sys.argv,"--nopretend")
+    pretend = not nopretend
+    (devonly,val,sys.argv) = utils.check_arg(sys.argv,"--devonly")
+    (dataonly,val,sys.argv) = utils.check_arg(sys.argv,"--dataonly")
+    (prunedev,val,sys.argv) = utils.check_arg(sys.argv,"--prunedev")
     
     if devonly and dataonly:
         print "Error: --devonly and --dataonly are exclusive options."
@@ -137,12 +119,16 @@ elif sys.argv[1] == 'delete':
     devs_delete = []
     for dev in devices:
         devdef = utils.read_device(dev.device_type)
-        devs_delete.append(dev)
+        devdelete = True
         if ( len(dev.source_ids) == 0 ): continue;
         print "\nFor device %s (%s) on %s:"%(dev.IDstr,devdef['name'],dev.source_name)
         if dev.source_name not in to_delete:
             to_delete[dev.source_name] = []
         for idx in range(len(dev.source_ids)):
+            if prunedev and dev.feed_names[idx] in devdef['feeds']:
+                devdelete = False
+                continue
+            
             id = dev.source_ids[idx]
             if ( idx < len(dev.feed_names) ):
                 print "\t%20s : %s"%(dev.feed_names[idx],id)
@@ -150,6 +136,9 @@ elif sys.argv[1] == 'delete':
                 print "\t%20s : %s"%('???',id)
                 
             to_delete[dev.source_name].append(id)
+        
+        if devdelete:
+            devs_delete.append(dev)
     
     if not devonly:
         for source,idlist in to_delete.iteritems():

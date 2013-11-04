@@ -64,6 +64,11 @@ def read_packet_timestamp(data):
             return time
     return None
     
+def read_packet_type(data):
+    if len(data) >= 2:
+        return ord(data[1])
+    return None
+    
 def set_packet_timestamp(data, ts):
     if len(data) >= 8:
         if ord(data[1]) == MT_SENSOR_DATA or ord(data[1]) == MT_RFID_TAG_DETECTED:
@@ -95,7 +100,7 @@ def read_packet(data):
         (ptime,fields) = struct.unpack('<IH',data[0:6])
         data = data[6:]
         feedidx = 0;
-        #print "Fields:%04X data:%s"%(fields,utils.hexify(data))
+       # print "Fields:%04X data:%s"%(fields,utils.hexify(data))
         # check each bit in <fields> and unpack from <data>
         for b in range(16): 
             if ( fields & (1<<b) != 0):
@@ -107,13 +112,13 @@ def read_packet(data):
                         break;
                     elif dev['_SPFbm'][feedidx] == b:
                         while feedidx < len(dev['_SPFbm']) and dev['_SPFbm'][feedidx] == b:
-                            #print "\t[%s]"%(dev['feeds'][feedidx])
                             feedidxfound += [feedidx]
                             type = dev['_SPFft'][feedidx]
                             tsize = struct.calcsize(type);
                             (val,) = struct.unpack('<'+type,data[0:tsize])
                             data = data[tsize:]
                             feedvalsfound += [float(val)]
+                           # print "\t[%s] : %.2f"%(dev['feeds'][feedidx],float(val))
                             feedidx += 1
                             
                         break
@@ -183,6 +188,7 @@ def read_packet(data):
         return (devf,MT_DEVICE_IDENTIFIER,idtype,idstr)
         
 def timesync_packet():
+    #0000004F056B5200
     return '\x00\x00'+struct.pack('<I',time.time())
     
 def publish(source, data):
